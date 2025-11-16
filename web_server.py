@@ -1,16 +1,16 @@
-# File: web_server.py (Code Web Server + Discord Bot)
+# File: web_server.py (Code Web Server + Discord Bot - Dùng Biến Môi Trường)
 
 from flask import Flask, jsonify
 import disnake
 from disnake.ext import commands
 import threading
-import asyncio
+import os # Thư viện cần thiết để đọc biến môi trường
 
 # -------------------------------------------------------------------
 # 1. CẤU HÌNH
 # -------------------------------------------------------------------
-# TOKEN DISCORD CỦA BẠN
-DISCORD_BOT_TOKEN = "MTQzODAxNTgyMzk2Mzc1MDQ1Mg.GvH-IY.r8KAh03fm1N80fmu826ZfW27DABtEp--FlWoJo" 
+# LẤY TOKEN TỪ BIẾN MÔI TRƯỜNG (Tuyệt đối KHÔNG dán Token ở đây!)
+DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN") 
 
 # Cấu hình Intents
 intents = disnake.Intents.default()
@@ -36,8 +36,9 @@ async def on_message(message):
         
     user_text = message.content.lower()
     
+    # Kiểm tra lệnh !hello
     if user_text == '!hello':
-        await message.channel.send(f"Chào {message.author.mention}! Bot Discord đang chạy trên Web Server.")
+        await message.channel.send(f"Chào {message.author.mention}! Bot Discord đang chạy trên Web Server (Token bảo mật).")
     
     await bot.process_commands(message)
 
@@ -47,23 +48,29 @@ async def on_message(message):
 
 @app.route('/', methods=['GET'])
 def home():
-    return f"<h1>Discord Bot Web Server is Running!</h1><p>Bot Status: {bot.user} (Online)</p>"
-
-@app.route('/api/status', methods=['GET'])
-def api_status():
-    return jsonify({"status": "live", "bot_user": str(bot.user), "bot_id": bot.user.id})
+    # Kiểm tra xem Bot đã đăng nhập chưa
+    bot_status = f"{bot.user} (Online)" if bot.is_ready() else "Bot đang khởi động..."
+    return f"<h1>Discord Bot Web Server is Running!</h1><p>Bot Status: {bot_status}</p>"
 
 # -------------------------------------------------------------------
 # 4. CHẠY CẢ HAI CÙNG LÚC
 # -------------------------------------------------------------------
 
 def run_flask():
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    """Chạy Flask Web Server."""
+    if not DISCORD_BOT_TOKEN:
+        print("🚨 Lỗi: KHÔNG tìm thấy DISCORD_BOT_TOKEN. Vui lòng thêm vào Biến Môi trường Render.")
+        return
 
-def run_discord_bot():
-    bot.loop.create_task(bot.start(DISCORD_BOT_TOKEN))
+    # Khởi tạo và chạy Bot Discord trong một luồng (thread) riêng
+    discord_thread = threading.Thread(target=lambda: bot.loop.run_until_complete(bot.start(DISCORD_BOT_TOKEN)))
+    discord_thread.start()
+    
+    # Bật Flask Web Server trong luồng chính
+    print("Web Server đã khởi động trên 0.0.0.0:5000")
+    app.run(host='0.0.0.0', port=os.environ.get("PORT", 5000), debug=False)
+
 
 if __name__ == '__main__':
-    discord_thread = threading.Thread(target=run_discord_bot)
-    discord_thread.start()
     run_flask()
+        
