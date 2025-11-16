@@ -1,10 +1,10 @@
-# File: web_server.py (Code Web Server + Discord Bot - Dùng Biến Môi Trường)
+# File: web_server.py (Code Web Server + Discord Bot - Dùng Biến Môi Trường và Bảng Xếp Hạng)
 
 from flask import Flask, jsonify
 import disnake
 from disnake.ext import commands
 import threading
-import os # Thư viện cần thiết để đọc biến môi trường
+import os 
 
 # -------------------------------------------------------------------
 # 1. CẤU HÌNH
@@ -38,19 +38,79 @@ async def on_message(message):
     
     # Kiểm tra lệnh !hello
     if user_text == '!hello':
-        await message.channel.send(f"Chào {message.author.mention}! Bot Discord đang chạy trên Web Server (Token bảo mật).")
+        await message.channel.send(f"Chào {message.author.mention}! Bot Discord đang chạy trên Web Server.")
     
     await bot.process_commands(message)
 
 # -------------------------------------------------------------------
-# 3. LOGIC FLASK WEB SERVER
+# 3. LOGIC FLASK WEB SERVER (THÊM BẢNG XẾP HẠNG HCOIN)
 # -------------------------------------------------------------------
 
 @app.route('/', methods=['GET'])
 def home():
-    # Kiểm tra xem Bot đã đăng nhập chưa
+    # Dữ liệu Bảng Xếp Hạng Hcoin (Bạn có thể thay đổi tùy thích)
+    leaderboard_data = [
+        {"rank": 1, "name": "Người Tạo Bot (Bạn)", "hcoin": 50000},
+        {"rank": 2, "name": "Thành viên A", "hcoin": 35000},
+        {"rank": 3, "name": "Thành viên B", "hcoin": 15000},
+        {"rank": 4, "name": "Thành viên C", "hcoin": 8000},
+        {"rank": 5, "name": "Thành viên D", "hcoin": 2500},
+    ]
+
+    # Bắt đầu tạo nội dung HTML
+    html_table = ""
+    for item in leaderboard_data:
+        # Tạo hàng cho mỗi người chơi
+        html_table += f"""
+        <tr>
+            <td>{item['rank']}</td>
+            <td>{item['name']}</td>
+            <td>{item['hcoin']:,} Hcoin</td>
+        </tr>
+        """
+    
+    # Kiểm tra trạng thái bot
     bot_status = f"{bot.user} (Online)" if bot.is_ready() else "Bot đang khởi động..."
-    return f"<h1>Discord Bot Web Server is Running!</h1><p>Bot Status: {bot_status}</p>"
+
+    # Trả về toàn bộ nội dung HTML
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Hcoin Leaderboard Của Discord Bot</title>
+        <style>
+            body {{ background-color: #2c2f33; color: #dcddde; font-family: sans-serif; text-align: center; }}
+            .container {{ width: 80%; margin: 50px auto; }}
+            h1 {{ color: #7289da; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
+            th, td {{ border: 1px solid #4f545c; padding: 12px; text-align: left; }}
+            th {{ background-color: #4f545c; color: white; }}
+            .status-box {{ padding: 10px; background-color: #43b581; color: white; border-radius: 5px; margin-bottom: 20px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>📊 Bảng Xếp Hạng Hcoin</h1>
+            <div class="status-box">Bot Status: {bot_status}</div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Hạng</th>
+                        <th>Tên Thành Viên</th>
+                        <th>Số Hcoin</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {html_table}
+                </tbody>
+            </table>
+
+            <p style="margin-top: 30px;">Để thử bot: Gõ lệnh **!hello** trong Discord.</p>
+        </div>
+    </body>
+    </html>
+    """
 
 # -------------------------------------------------------------------
 # 4. CHẠY CẢ HAI CÙNG LÚC
@@ -73,4 +133,4 @@ def run_flask():
 
 if __name__ == '__main__':
     run_flask()
-        
+         
