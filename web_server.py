@@ -13,6 +13,9 @@ import threading
 USERS_FILE = 'users.json'
 temp_message = None 
 
+# Thiết lập tốc độ đào (100 Hcoin/giây)
+Hcoin_PER_SECOND = 100 
+
 def load_data():
     """Tải dữ liệu người dùng từ tệp JSON."""
     if os.path.exists(USERS_FILE):
@@ -53,6 +56,7 @@ async def hello_command(inter: disnake.ApplicationCommandInteraction):
 
 @bot.slash_command(name="coin", description="Xem số Hcoin hiện tại của bạn.")
 async def coin_command(inter: disnake.ApplicationCommandInteraction):
+    # Cần tích hợp với logic coin thực tế nếu có
     await inter.response.send_message(f"Bạn đang có 10,000 Hcoin.", ephemeral=True)
 
 @bot.slash_command(name="xemkeo", description="Xem số dư Kẹo Halloween hiện tại.")
@@ -127,7 +131,7 @@ def web_claim_candy():
 
 @app.route('/', methods=['GET'])
 def home():
-    """TRANG CHỦ - Giao diện SIÊU HIỆN ĐẠI."""
+    """TRANG CHỦ - Giao diện SIÊU HIỆN ĐẠI với MINING GAME."""
     global temp_message
     global bot 
 
@@ -140,7 +144,7 @@ def home():
         {"rank": 5, "name": "Bí Ngô", "hcoin": 4000},
     ]
 
-    # --- DỮ LIỆU SỰ KIỆN MỚI (Đã tăng số lượng) ---
+    # --- DỮ LIỆU SỰ KIỆN ---
     event_data = [
         {"icon": "🎉", "title": "Chào mừng Tháng 11!", "detail": "Tham gia máy chủ Discord để nhận gói quà tân thủ trị giá 5,000 Hcoin."},
         {"icon": "🎁", "title": "Sự Kiện Lễ Tạ Ơn", "detail": "Nhận 200 Hcoin miễn phí mỗi ngày từ 24/11 đến 30/11."},
@@ -190,7 +194,7 @@ def home():
         alert_html = f'<div class="alert-message">{temp_message}</div>'
         temp_message = None 
 
-    # Trả về toàn bộ nội dung HTML với CSS, FORM
+    # Trả về toàn bộ nội dung HTML với CSS, FORM và MINING GAME SCRIPT
     return f"""
     <!DOCTYPE html>
     <html lang="vi">
@@ -204,6 +208,7 @@ def home():
                 --dark-bg: #111111;
                 --card-bg: #1e1e1e;
                 --border-color: #333333;
+                --mine-color: #FFFF00; /* Vàng Neon */
             }}
             body {{ 
                 background-color: var(--dark-bg); 
@@ -233,7 +238,7 @@ def home():
                 margin-top: 40px;
             }}
 
-            /* === STATUS CARD === */
+            /* === STATUS CARD & ALERTS (giữ nguyên) === */
             .status-card {{ 
                 padding: 15px; 
                 background-color: var(--card-bg); 
@@ -264,13 +269,62 @@ def home():
                 50% {{ box-shadow: 0 0 20px {status_color}; }}
                 100% {{ box-shadow: 0 0 10px {status_color}; }}
             }}
+            .alert-message {{
+                padding: 15px;
+                background-color: #FFA500;
+                color: #111;
+                border-radius: 5px;
+                margin-bottom: 20px;
+                font-weight: bold;
+                border: 2px dashed #000;
+            }}
 
-            /* === EVENT LIST CARD === */
+            /* === MINING CARD (MỚI) === */
+            .mining-card {{
+                background: var(--card-bg);
+                padding: 30px;
+                border-radius: 8px;
+                border: 2px solid var(--mine-color);
+                box-shadow: 0 0 15px var(--mine-color);
+                margin-bottom: 40px;
+            }}
+            #hcoin-count {{
+                font-size: 2.5em;
+                font-weight: bold;
+                color: var(--mine-color);
+                text-shadow: 0 0 10px var(--mine-color);
+                margin: 15px 0;
+                display: block;
+            }}
+            .mine-btn, .stop-btn {{
+                padding: 15px 25px;
+                margin: 10px;
+                border-radius: 5px;
+                border: none;
+                font-size: 1.1em;
+                font-family: 'Space Mono', monospace;
+                font-weight: bold;
+                cursor: pointer;
+                transition: opacity 0.3s;
+            }}
+            .mine-btn {{
+                background-color: var(--mine-color);
+                color: var(--dark-bg);
+            }}
+            .stop-btn {{
+                background-color: #FF0000; /* Đỏ dừng */
+                color: white;
+            }}
+            .mine-btn:hover, .stop-btn:hover {{ opacity: 0.8; }}
+            .hidden {{ display: none; }}
+
+
+            /* === EVENT LIST, CLAIM CARD, LEADERBOARD (giữ nguyên) === */
             .event-list {{
                 background: var(--card-bg);
                 padding: 20px;
                 border-radius: 8px;
-                border: 2px solid #FFA500; /* Màu cam nổi bật */
+                border: 2px solid #FFA500;
                 box-shadow: 0 0 10px #FFA500;
                 margin-bottom: 40px;
                 text-align: left;
@@ -282,20 +336,9 @@ def home():
                 border-bottom: 1px dashed var(--border-color);
                 align-items: center;
             }}
-            .event-item:last-child {{
-                border-bottom: none;
-            }}
-            .event-icon {{
-                font-size: 1.8em;
-            }}
-            .event-content p {{
-                margin: 5px 0 0 0;
-                color: #aaa;
-                font-size: 0.9em;
-            }}
-
-
-            /* === CLAIM CARD === */
+            .event-item:last-child {{ border-bottom: none; }}
+            .event-icon {{ font-size: 1.8em; }}
+            .event-content p {{ margin: 5px 0 0 0; color: #aaa; font-size: 0.9em; }}
             .claim-card {{
                 background: var(--card-bg);
                 padding: 30px;
@@ -304,100 +347,70 @@ def home():
                 box-shadow: 0 0 10px var(--accent-color);
                 margin-bottom: 40px;
             }}
-            .claim-card input[type=text], .claim-card button {{
-                padding: 12px;
-                margin: 10px;
-                border-radius: 5px;
-                border: 1px solid var(--border-color);
-                font-size: 1em;
-                font-family: 'Space Mono', monospace;
-            }}
             .claim-card input[type=text] {{
-                background: #2a2a2a;
-                color: var(--main-color);
-                width: 70%;
-                max-width: 300px;
+                background: #2a2a2a; color: var(--main-color); width: 70%; max-width: 300px; padding: 12px; margin: 10px; border-radius: 5px; border: 1px solid var(--border-color); font-size: 1em; font-family: 'Space Mono', monospace;
             }}
             .claim-card button {{
-                background-color: var(--accent-color);
-                color: var(--dark-bg);
-                cursor: pointer;
-                font-weight: bold;
-                transition: background-color 0.3s, box-shadow 0.3s;
-                border: none;
+                background-color: var(--accent-color); color: var(--dark-bg); cursor: pointer; font-weight: bold; transition: background-color 0.3s, box-shadow 0.3s; border: none; padding: 12px; margin: 10px; border-radius: 5px; font-size: 1em; font-family: 'Space Mono', monospace;
             }}
-            .claim-card button:hover {{
-                background-color: #FF69B4;
-                box-shadow: 0 0 15px var(--accent-color);
-            }}
-
-            /* === ALERT MESSAGE === */
-            .alert-message {{
-                padding: 15px;
-                background-color: #FFA500;
-                color: #111;
-                border-radius: 5px;
-                margin-bottom: 20px;
-                font-weight: bold;
-                border: 2px dashed #000;
-            }}
-
-            /* === LEADERBOARD TABLE (RESPONSIVE) === */
+            .claim-card button:hover {{ background-color: #FF69B4; box-shadow: 0 0 15px var(--accent-color); }}
             table {{ 
-                width: 100%; 
-                border-collapse: collapse; 
-                margin-top: 20px; 
-                background: #222; 
-                border: 1px solid var(--main-color);
-                box-shadow: 0 0 8px var(--main-color);
-                border-radius: 5px;
+                width: 100%; border-collapse: collapse; margin-top: 20px; background: #222; border: 1px solid var(--main-color); box-shadow: 0 0 8px var(--main-color); border-radius: 5px;
             }}
-            th, td {{ 
-                padding: 15px 10px; 
-                text-align: left; 
-                border-bottom: 1px dashed var(--border-color);
-            }}
-            th {{ 
-                background-color: #000; 
-                color: var(--accent-color); 
-                font-weight: 700;
-                text-transform: uppercase;
-            }}
+            th, td {{ padding: 15px 10px; text-align: left; border-bottom: 1px dashed var(--border-color); }}
+            th {{ background-color: #000; color: var(--accent-color); font-weight: 700; text-transform: uppercase; }}
             tr:nth-child(even) {{ background-color: #1a1a1a; }}
             tr:hover {{ background-color: #2a2a2a; }}
-
-            /* Mobile optimization */
             @media (max-width: 600px) {{
-                table, thead, tbody, th, td, tr {{ 
-                    display: block; 
-                }}
-                thead tr {{ 
-                    position: absolute;
-                    top: -9999px;
-                    left: -9999px;
-                }}
+                table, thead, tbody, th, td, tr {{ display: block; }}
+                thead tr {{ position: absolute; top: -9999px; left: -9999px; }}
                 tr {{ border: 1px solid var(--border-color); margin-bottom: 15px; }}
-                td {{ 
-                    border: none;
-                    border-bottom: 1px solid #333;
-                    position: relative;
-                    padding-left: 50%;
-                    text-align: right;
-                }}
-                td:before {{ 
-                    content: attr(data-label);
-                    position: absolute;
-                    left: 10px;
-                    width: 45%;
-                    padding-right: 10px;
-                    white-space: nowrap;
-                    text-align: left;
-                    font-weight: bold;
-                    color: var(--accent-color);
-                }}
+                td {{ border: none; border-bottom: 1px solid #333; position: relative; padding-left: 50%; text-align: right; }}
+                td:before {{ content: attr(data-label); position: absolute; left: 10px; width: 45%; padding-right: 10px; white-space: nowrap; text-align: left; font-weight: bold; color: var(--accent-color); }}
             }}
         </style>
         <script>
+            let hcoin_balance = 0; // Số Hcoin đang đào (Chỉ hiển thị trên web)
+            let mining_interval;
+            const Hcoin_PER_SECOND = 100;
+            const update_display = () => {{
+                document.getElementById('hcoin-count').innerText = hcoin_balance.toLocaleString() + " Hcoin";
+            }};
+            
+            const start_mining = () => {{
+                if (mining_interval) return; // Đã chạy rồi thì không chạy nữa
+
+                // Đặt nút đào thành ẩn, hiện nút tắt
+                document.getElementById('start-btn').classList.add('hidden');
+                document.getElementById('stop-btn').classList.remove('hidden');
+
+                // Chạy hàm cập nhật mỗi 1000ms (1 giây)
+                mining_interval = setInterval(() => {{
+                    hcoin_balance += Hcoin_PER_SECOND;
+                    update_display();
+                }}, 1000); 
+                
+                document.getElementById('mining-status').innerText = "Đang Đào... ({Hcoin_PER_SECOND} Hcoin/s)";
+            }};
+
+            const stop_mining = () => {{
+                if (mining_interval) {{
+                    clearInterval(mining_interval);
+                    mining_interval = null;
+                }}
+                
+                // Đặt nút tắt thành ẩn, hiện nút đào
+                document.getElementById('start-btn').classList.remove('hidden');
+                document.getElementById('stop-btn').classList.add('hidden');
+                
+                document.getElementById('mining-status').innerText = "Đã Tắt. Đã đào được: " + hcoin_balance.toLocaleString() + " Hcoin (Giả lập).";
+            }};
+
+            // Khởi tạo trạng thái ban đầu
+            window.onload = () => {{
+                update_display();
+                document.getElementById('mining-status').innerText = "Sẵn sàng Đào Hcoin (100 Hcoin/s)";
+            }};
         </script>
     </head>
     <body>
@@ -413,6 +426,16 @@ def home():
             
             {alert_html}
 
+            <div class="mining-card">
+                <h2>⫸ MÁY ĐÀO HCOIN TỐC ĐỘ CAO</h2>
+                <p id="mining-status" style="color: var(--mine-color); font-weight: bold;"></p>
+                <span id="hcoin-count">0 Hcoin</span>
+                
+                <button class="mine-btn" id="start-btn" onclick="start_mining()">💰 BẮT ĐẦU ĐÀO</button>
+                <button class="stop-btn hidden" id="stop-btn" onclick="stop_mining()">🛑 DỪNG ĐÀO</button>
+                <p style="color: #999; font-size: 0.8em; margin-top: 15px;">LƯU Ý: Số Hcoin này chỉ là giả lập trên web và sẽ bị mất khi tải lại trang.</p>
+            </div>
+            
             <div class="event-list">
                 <h2>⫸ SỰ KIỆN & CẬP NHẬT MỚI</h2>
                 {html_event_list}
@@ -471,4 +494,4 @@ def run_flask():
 
 if __name__ == '__main__':
     run_flask()
-        
+    
