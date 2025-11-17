@@ -198,10 +198,9 @@ def home():
     if temp_message:
         alert_html = f'<div class="alert-message">{temp_message}</div>'
         temp_message = None 
-
-    # Trả về toàn bộ nội dung HTML với CSS, FORM và MINING GAME SCRIPT
-    # LƯU Ý: Đã tách </body></html> ra khỏi f-string chính để tránh lỗi cắt code.
-    return f"""
+        
+    # --- PHẦN 1: HTML MỞ ĐẦU, CSS, VÀ JAVASCRIPT ---
+    html_start = f"""
     <!DOCTYPE html>
     <html lang="vi">
     <head>
@@ -244,7 +243,7 @@ def home():
                 margin-top: 40px;
             }}
 
-            /* === STATUS CARD & ALERTS (giữ nguyên) === */
+            /* === STATUS CARD & ALERTS === */
             .status-card {{ 
                 padding: 15px; 
                 background-color: var(--card-bg); 
@@ -285,7 +284,7 @@ def home():
                 border: 2px dashed #000;
             }}
 
-            /* === MINING CARD (MỚI) === */
+            /* === MINING CARD === */
             .mining-card {{
                 background: var(--card-bg);
                 padding: 30px;
@@ -325,7 +324,7 @@ def home():
             .hidden {{ display: none; }}
 
 
-            /* === EVENT LIST, CLAIM CARD, LEADERBOARD (giữ nguyên) === */
+            /* === EVENT LIST, CLAIM CARD, LEADERBOARD === */
             .event-list {{
                 background: var(--card-bg);
                 padding: 20px;
@@ -476,10 +475,16 @@ def home():
             <p style="margin-top: 50px; color: #888;">
                 Sử dụng lệnh **/** trong Discord và chọn **hello**, **coin**, **xemkeo** hoặc **doikeo**.
             </p>
-        </div> 
+        </div>
+    """
+    
+    # --- PHẦN 2: HTML KẾT THÚC (Được nối thêm để đảm bảo không bị cắt) ---
+    html_end = """
     </body>
     </html>
     """
+    
+    return html_start + html_end
     
 # -------------------------------------------------------------------
 # 4. CHẠY CẢ HAI CÙNG LÚC
@@ -492,19 +497,11 @@ def run_flask():
         return
 
     # Khởi tạo và chạy Bot Discord trong một luồng (thread) riêng
-    discord_thread = threading.Thread(target=lambda: bot.loop.run_until_complete(bot.start(DISCORD_BOT_TOKEN)))
-    discord_thread.start()
-    
-    # Bật Flask Web Server trong luồng chính
+    discord_thread = threading.Thread(target=lambda: bot.loop.run_until_complete(bot.start()
+
+        # Bật Flask Web Server trong luồng chính
     print("Web Server đã khởi động trên 0.0.0.0:5000")
     app.run(host='0.0.0.0', port=os.environ.get("PORT", 5000), debug=False)
 
-
-# ... (Phần cuối hàm run_flask)
-    # Bật Flask Web Server trong luồng chính
-    print("Web Server đã khởi động trên 0.0.0.0:5000")
-    app.run(host='0.0.0.0', port=os.environ.get("PORT", 5000), debug=False)
-
-
-if __name__ == '__main__':  # <-- Dán dòng này (có dấu :)
-    run_flask()              # <-- Dán dòng này (có thụt đầu dòng)
+ if __name__ == '__main__':  # <-- Dán dòng này (Không thụt đầu dòng)
+    run_flask()              # <-- Dán dòng này (Thụt vào 4 khoảng trắng)
