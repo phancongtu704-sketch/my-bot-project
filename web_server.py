@@ -180,10 +180,11 @@ def home():
         {"rank": 5, "name": "Bí Ngô", "hcoin": 4000},
     ]
 
-    # SỬA LỖI Ở ĐÂY: Dùng bot.user.name an toàn hơn hoặc tên mặc định.
+    # FIX LỖI: Kiểm tra an toàn trước khi truy cập bot.user
     if bot.is_ready() and bot.user:
         bot_status_name = bot.user.name
     else:
+        # Tên mặc định để tránh lỗi NameError nếu bot chưa kịp khởi động
         bot_status_name = "Discord Bot"
 
     bot_status = f"{bot_status_name} (Online)" if bot.is_ready() else "Bot đang khởi động..."
@@ -430,4 +431,3 @@ def run_flask():
 
 if __name__ == '__main__':
     run_flask()
-    
