@@ -2,7 +2,7 @@ import json
 import os
 import time
 import random 
-from flask import Flask, request, jsonify, redirect, url_for
+from flask import Flask, request, redirect, url_for
 import disnake
 from disnake.ext import commands
 import threading
@@ -11,14 +11,7 @@ import threading
 # 0. CẤU HÌNH DỮ LIỆU VÀ BIẾN TOÀN CỤC
 # -------------------------------------------------------------------
 USERS_FILE = 'users.json'
-temp_message = None 
-
-# Dữ liệu Chứng khoán giả lập ban đầu
-STOCK_PRICES = {
-    "VNM": {"price": 105.00, "change": 0.00},
-    "HPG": {"price": 28.50, "change": 0.00},
-    "VIC": {"price": 68.20, "change": 0.00},
-}
+temp_message = None # Biến tạm để lưu thông báo chuyển hướng
 
 def load_data():
     """Tải dữ liệu người dùng từ tệp JSON."""
@@ -95,40 +88,6 @@ async def doikeo_command(inter: disnake.ApplicationCommandInteraction):
 # 3. LOGIC FLASK WEB SERVER (XỬ LÝ API VÀ NHẬN KẸO QUA WEB)
 # -------------------------------------------------------------------
 
-def generate_stock_prices():
-    """Tạo ngẫu nhiên giá cổ phiếu để mô phỏng thị trường."""
-    global STOCK_PRICES
-    new_data = []
-
-    for ticker, data in STOCK_PRICES.items():
-        fluctuation = round(random.uniform(-0.5, 0.5), 2)
-        new_price = round(data['price'] + fluctuation, 2)
-        price_change = round(new_price - data['price'], 2)
-        
-        if new_price < 1.0:
-            new_price = 1.0 
-        
-        percent_change = round((price_change / data['price']) * 100, 2)
-        
-        STOCK_PRICES[ticker]['price'] = new_price
-        STOCK_PRICES[ticker]['change'] = price_change
-        
-        new_data.append({
-            "ticker": ticker,
-            "price": f"{new_price:,.2f}đ",
-            "change_abs": f"{price_change:+,.2f}",
-            "change_percent": f"{percent_change:+,.2f}%"
-        })
-        
-    return new_data
-
-
-@app.route('/stock_data', methods=['GET'])
-def get_stock_data():
-    """API trả về dữ liệu chứng khoán trực tiếp (giả lập)."""
-    return jsonify(generate_stock_prices())
-
-
 @app.route('/web_claim', methods=['POST'])
 def web_claim_candy():
     global temp_message
@@ -168,7 +127,7 @@ def web_claim_candy():
 
 @app.route('/', methods=['GET'])
 def home():
-    """TRANG CHỦ - Giao diện Halloween VỚI BẢNG CHỨNG KHOÁN."""
+    """TRANG CHỦ - Giao diện Halloween ĐƠN GIẢN."""
     global temp_message
     
     # Dữ liệu Bảng Xếp Hạng Hcoin (Chủ đề Halloween)
@@ -184,7 +143,6 @@ def home():
     if bot.is_ready() and bot.user:
         bot_status_name = bot.user.name
     else:
-        # Tên mặc định để tránh lỗi NameError nếu bot chưa kịp khởi động
         bot_status_name = "Discord Bot"
 
     bot_status = f"{bot_status_name} (Online)" if bot.is_ready() else "Bot đang khởi động..."
@@ -206,7 +164,7 @@ def home():
         alert_html = f'<div class="alert-message">{temp_message}</div>'
         temp_message = None 
 
-    # Trả về toàn bộ nội dung HTML với CSS, FORM và Bảng Chứng khoán
+    # Trả về toàn bộ nội dung HTML với CSS, FORM
     return f"""
     <!DOCTYPE html>
     <html>
@@ -273,7 +231,7 @@ def home():
                 padding: 15px; 
                 border-top: 2px dashed #ff6600;
             }}
-            .candy-box, .stock-market-box {{
+            .candy-box {{
                 background: #333;
                 padding: 20px;
                 border-radius: 10px;
@@ -309,49 +267,7 @@ def home():
                 margin-bottom: 20px;
                 font-weight: bold;
             }}
-            
-            /* CSS RIÊNG CHO CHỨNG KHOÁN */
-            .stock-market-box table th {{
-                background-color: #7289da; /* Màu Discord Blue */
-            }}
         </style>
-        <script>
-            // ======================================================
-            // JAVASCRIPT: CẬP NHẬT BẢNG CHỨNG KHOÁN MỖI 1 PHÚT
-            // ======================================================
-            function updateStockTable() {{
-                fetch('/stock_data')
-                    .then(response => response.json())
-                    .then(data => {{
-                        const tbody = document.getElementById('stock-body');
-                        tbody.innerHTML = ''; 
-
-                        data.forEach(stock => {{
-                            const is_positive = stock.change_abs.startsWith('+');
-                            const color = is_positive ? '#43b581' : '#ff6600'; 
-                            const arrow = is_positive ? '▲' : '▼';
-                            
-                            const row = `
-                                <tr>
-                                    <td><strong>${stock.ticker}</strong></td>
-                                    <td>${stock.price}</td>
-                                    <td style="color: ${color}; font-weight: bold;">${arrow} ${stock.change_abs}</td>
-                                    <td style="color: ${color};">${stock.change_percent}</td>
-                                </tr>
-                            `;
-                            tbody.innerHTML += row;
-                        }});
-                    }})
-                    .catch(error => console.error('Lỗi khi tải dữ liệu chứng khoán:', error));
-            }}
-
-            // Tải lần đầu ngay khi trang load
-            window.onload = function() {{
-                updateStockTable(); 
-                // Thiết lập Interval để cập nhật mỗi 60 giây (1 phút)
-                setInterval(updateStockTable, 60000); 
-            }};
-        </script>
     </head>
     <body>
         <div class="container">
@@ -370,24 +286,6 @@ def home():
                 </form>
             </div>
             
-            <div class="stock-market-box">
-                <h2>📈 Thị Trường Chứng Khoán Ma Quái (Giá Live)</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Mã CK</th>
-                            <th>Giá</th>
-                            <th>Thay đổi</th>
-                            <th>% Thay đổi</th>
-                        </tr>
-                    </thead>
-                    <tbody id="stock-body">
-                        </tbody>
-                </table>
-                <p style="font-size: 0.8em; margin-top: 10px; color: #aaa;">Cập nhật mỗi 1 phút. Dữ liệu chỉ mang tính chất minh họa.</p>
-            </div>
-
-
             <h2>📊 Bảng Xếp Hạng Hcoin (Ma Quái)</h2>
             <table>
                     <thead>
@@ -431,3 +329,4 @@ def run_flask():
 
 if __name__ == '__main__':
     run_flask()
+        
