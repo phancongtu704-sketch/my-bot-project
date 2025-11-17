@@ -2,7 +2,7 @@ import json
 import os
 import time
 import random 
-from flask import Flask, request, redirect, url_for
+from flask import Flask, request, jsonify, redirect, url_for
 import disnake
 from disnake.ext import commands
 import threading
@@ -11,7 +11,14 @@ import threading
 # 0. CẤU HÌNH DỮ LIỆU VÀ BIẾN TOÀN CỤC
 # -------------------------------------------------------------------
 USERS_FILE = 'users.json'
-temp_message = None # Biến tạm để lưu thông báo chuyển hướng
+temp_message = None 
+
+# Dữ liệu Chứng khoán giả lập ban đầu
+STOCK_PRICES = {
+    "VNM": {"price": 105.00, "change": 0.00},
+    "HPG": {"price": 28.50, "change": 0.00},
+    "VIC": {"price": 68.20, "change": 0.00},
+}
 
 def load_data():
     """Tải dữ liệu người dùng từ tệp JSON."""
@@ -87,6 +94,47 @@ async def doikeo_command(inter: disnake.ApplicationCommandInteraction):
 # -------------------------------------------------------------------
 # 3. LOGIC FLASK WEB SERVER (XỬ LÝ API VÀ NHẬN KẸO QUA WEB)
 # -------------------------------------------------------------------
+
+def generate_stock_prices():
+    """Tạo ngẫu nhiên giá cổ phiếu để mô phỏng thị trường."""
+    global STOCK_PRICES
+    new_data = []
+
+    for ticker, data in STOCK_PRICES.items():
+        # Mô phỏng biến động ngẫu nhiên (tăng/giảm tới 0.5)
+        fluctuation = round(random.uniform(-0.5, 0.5), 2)
+        
+        # Tính toán giá mới và sự thay đổi
+        new_price = round(data['price'] + fluctuation, 2)
+        price_change = round(new_price - data['price'], 2)
+        
+        # Đảm bảo giá không quá thấp (chỉ là giả lập)
+        if new_price < 1.0:
+            new_price = 1.0 
+        
+        # Tính phần trăm thay đổi
+        percent_change = round((price_change / data['price']) * 100, 2)
+        
+        # Cập nhật trạng thái toàn cục cho lần gọi tiếp theo
+        STOCK_PRICES[ticker]['price'] = new_price
+        STOCK_PRICES[ticker]['change'] = price_change
+        
+        new_data.append({
+            "ticker": ticker,
+            "price": f"{new_price:,.2f}đ",
+            "change_abs": f"{price_change:+,.2f}",
+            "change_percent": f"{percent_change:+,.2f}%"
+        })
+        
+    return new_data
+
+
+@app.route('/stock_data', methods=['GET'])
+def get_stock_data():
+    """API trả về dữ liệu chứng khoán trực tiếp (giả lập)."""
+    # Hàm này sẽ được gọi từ JavaScript mỗi 1 giây
+    return jsonify(generate_stock_prices())
+
 
 @app.route('/web_claim', methods=['POST'])
 def web_claim_candy():
@@ -277,6 +325,21 @@ def home():
                 box-shadow: 0 0 15px var(--accent-color);
             }}
 
+            /* === STOCK MARKET CARD === */
+            .stock-card {{
+                background: var(--card-bg);
+                padding: 30px 10px;
+                border-radius: 8px;
+                border: 2px solid var(--main-color);
+                box-shadow: 0 0 10px var(--main-color);
+                margin-bottom: 40px;
+            }}
+            .stock-card table th {{
+                background-color: #004444; 
+                color: var(--main-color);
+            }}
+
+
             /* === ALERT MESSAGE === */
             .alert-message {{
                 padding: 15px;
@@ -343,6 +406,43 @@ def home():
                 }}
             }}
         </style>
+        <script>
+            // ======================================================
+            // JAVASCRIPT: CẬP NHẬT BẢNG CHỨNG KHOÁN MỖI 1 GIÂY (1000ms)
+            // ======================================================
+            function updateStockTable() {{
+                fetch('/stock_data')
+                    .then(response => response.json())
+                    .then(data => {{
+                        const tbody = document.getElementById('stock-body');
+                        tbody.innerHTML = ''; 
+
+                        data.forEach(stock => {{
+                            const is_positive = stock.change_abs.startsWith('+');
+                            const color = is_positive ? '#00FF00' : '#FF0000'; // Xanh lá/Đỏ Neon
+                            const arrow = is_positive ? '▲' : '▼';
+                            
+                            const row = `
+                                <tr>
+                                    <td data-label="Mã CK"><strong>${stock.ticker}</strong></td>
+                                    <td data-label="Giá">${stock.price}</td>
+                                    <td data-label="Thay đổi" style="color: ${color}; font-weight: bold;">${arrow} ${stock.change_abs}</td>
+                                    <td data-label="% Thay đổi" style="color: ${color};">${stock.change_percent}</td>
+                                </tr>
+                            `;
+                            tbody.innerHTML += row;
+                        }});
+                    }})
+                    .catch(error => console.error('Lỗi khi tải dữ liệu chứng khoán:', error));
+            }}
+
+            // Tải lần đầu ngay khi trang load
+            window.onload = function() {{
+                updateStockTable(); 
+                // Thiết lập Interval để cập nhật mỗi 1 giây (1000ms)
+                setInterval(updateStockTable, 1000); 
+            }};
+        </script>
     </head>
     <body>
         <div class="container">
@@ -357,6 +457,23 @@ def home():
             
             {alert_html}
 
+            <div class="stock-card">
+                <h2>⫸ THỊ TRƯỜNG HCOIN LIVE (1S)</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mã CK</th>
+                            <th>Giá</th>
+                            <th>Thay đổi</th>
+                            <th>% Thay đổi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stock-body">
+                        </tbody>
+                </table>
+                <p style="font-size: 0.8em; margin-top: 10px; color: #888;">Dữ liệu cập nhật liên tục (giả lập).</p>
+            </div>
+            
             <div class="claim-card">
                 <h2>⫸ NHẬN KẸO MIỄN PHÍ | CLAIM REWARD</h2>
                 <p style="color: #bbb;">Nhập **ID Discord** để nhận **50 Kẹo** mỗi 24 giờ. Đừng quên /doikeo trong Discord!</p>
@@ -410,3 +527,4 @@ def run_flask():
 
 if __name__ == '__main__':
     run_flask()
+        
