@@ -140,10 +140,13 @@ def home():
         {"rank": 5, "name": "Bí Ngô", "hcoin": 4000},
     ]
 
-    # --- DỮ LIỆU SỰ KIỆN MỚI ---
+    # --- DỮ LIỆU SỰ KIỆN MỚI (Đã tăng số lượng) ---
     event_data = [
+        {"icon": "🎉", "title": "Chào mừng Tháng 11!", "detail": "Tham gia máy chủ Discord để nhận gói quà tân thủ trị giá 5,000 Hcoin."},
         {"icon": "🎁", "title": "Sự Kiện Lễ Tạ Ơn", "detail": "Nhận 200 Hcoin miễn phí mỗi ngày từ 24/11 đến 30/11."},
+        {"icon": "💰", "title": "Khuyến mãi Đổi Kẹo", "detail": "Tỉ lệ đổi Kẹo Halloween lấy Hcoin tăng 10% trong vòng 48 giờ tới."},
         {"icon": "🏆", "title": "Giải Đấu Coin Hàng Tuần", "detail": "Top 10 Bảng xếp hạng sẽ nhận thưởng Hcoin gấp đôi vào Chủ Nhật."},
+        {"icon": "🛡️", "title": "Cập nhật Anti-Cheat", "detail": "Hệ thống chống gian lận mới đã được triển khai để bảo vệ sự công bằng."},
         {"icon": "🛠️", "title": "Bảo Trì Hệ Thống", "detail": "Hệ thống sẽ bảo trì nâng cấp vào 2h sáng ngày 20/11 (30 phút)."},
     ]
     
@@ -262,7 +265,7 @@ def home():
                 100% {{ box-shadow: 0 0 10px {status_color}; }}
             }}
 
-            /* === EVENT LIST CARD (MỚI) === */
+            /* === EVENT LIST CARD === */
             .event-list {{
                 background: var(--card-bg);
                 padding: 20px;
@@ -468,3 +471,4 @@ def run_flask():
 
 if __name__ == '__main__':
     run_flask()
+        
