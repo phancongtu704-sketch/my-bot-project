@@ -13,8 +13,6 @@ import threading
 USERS_FILE = 'users.json'
 temp_message = None 
 
-# Đã loại bỏ STOCK_PRICES và logic liên quan
-
 def load_data():
     """Tải dữ liệu người dùng từ tệp JSON."""
     if os.path.exists(USERS_FILE):
@@ -87,10 +85,8 @@ async def doikeo_command(inter: disnake.ApplicationCommandInteraction):
     )
 
 # -------------------------------------------------------------------
-# 3. LOGIC FLASK WEB SERVER (XỬ LÝ API VÀ NHẬN KẸO QUA WEB)
+# 3. LOGIC FLASK WEB SERVER (XỬ LÝ API VÀ TRANG CHỦ)
 # -------------------------------------------------------------------
-
-# Đã loại bỏ generate_stock_prices() và route /stock_data
 
 @app.route('/web_claim', methods=['POST'])
 def web_claim_candy():
@@ -131,7 +127,7 @@ def web_claim_candy():
 
 @app.route('/', methods=['GET'])
 def home():
-    """TRANG CHỦ - Giao diện SIÊU HIỆN ĐẠI BỚT CHỨNG KHOÁN."""
+    """TRANG CHỦ - Giao diện SIÊU HIỆN ĐẠI."""
     global temp_message
     global bot 
 
@@ -142,6 +138,13 @@ def home():
         {"rank": 3, "name": "Ma Cà Rồng", "hcoin": 13000},
         {"rank": 4, "name": "Người Sói", "hcoin": 9000},
         {"rank": 5, "name": "Bí Ngô", "hcoin": 4000},
+    ]
+
+    # --- DỮ LIỆU SỰ KIỆN MỚI ---
+    event_data = [
+        {"icon": "🎁", "title": "Sự Kiện Lễ Tạ Ơn", "detail": "Nhận 200 Hcoin miễn phí mỗi ngày từ 24/11 đến 30/11."},
+        {"icon": "🏆", "title": "Giải Đấu Coin Hàng Tuần", "detail": "Top 10 Bảng xếp hạng sẽ nhận thưởng Hcoin gấp đôi vào Chủ Nhật."},
+        {"icon": "🛠️", "title": "Bảo Trì Hệ Thống", "detail": "Hệ thống sẽ bảo trì nâng cấp vào 2h sáng ngày 20/11 (30 phút)."},
     ]
     
     # Kiểm tra an toàn trước khi truy cập bot.user
@@ -163,6 +166,19 @@ def home():
             <td data-label="Tên">{item['name']}</td>
             <td data-label="Hcoin">{item['hcoin']:,}</td>
         </tr>
+        """
+        
+    # Lấy dữ liệu Bảng Sự Kiện HTML
+    html_event_list = ""
+    for event in event_data:
+        html_event_list += f"""
+        <div class="event-item">
+            <div class="event-icon">{event['icon']}</div>
+            <div class="event-content">
+                <strong>{event['title']}</strong>
+                <p>{event['detail']}</p>
+            </div>
+        </div>
         """
         
     # HIỂN THỊ THÔNG BÁO TỪ REDIRECT
@@ -245,6 +261,36 @@ def home():
                 50% {{ box-shadow: 0 0 20px {status_color}; }}
                 100% {{ box-shadow: 0 0 10px {status_color}; }}
             }}
+
+            /* === EVENT LIST CARD (MỚI) === */
+            .event-list {{
+                background: var(--card-bg);
+                padding: 20px;
+                border-radius: 8px;
+                border: 2px solid #FFA500; /* Màu cam nổi bật */
+                box-shadow: 0 0 10px #FFA500;
+                margin-bottom: 40px;
+                text-align: left;
+            }}
+            .event-item {{
+                display: flex;
+                gap: 15px;
+                padding: 15px 0;
+                border-bottom: 1px dashed var(--border-color);
+                align-items: center;
+            }}
+            .event-item:last-child {{
+                border-bottom: none;
+            }}
+            .event-icon {{
+                font-size: 1.8em;
+            }}
+            .event-content p {{
+                margin: 5px 0 0 0;
+                color: #aaa;
+                font-size: 0.9em;
+            }}
+
 
             /* === CLAIM CARD === */
             .claim-card {{
@@ -349,7 +395,6 @@ def home():
             }}
         </style>
         <script>
-            // Đã loại bỏ logic JavaScript chứng khoán
         </script>
     </head>
     <body>
@@ -364,6 +409,11 @@ def home():
             </div>
             
             {alert_html}
+
+            <div class="event-list">
+                <h2>⫸ SỰ KIỆN & CẬP NHẬT MỚI</h2>
+                {html_event_list}
+            </div>
             
             <div class="claim-card">
                 <h2>⫸ NHẬN KẸO MIỄN PHÍ | CLAIM REWARD</h2>
