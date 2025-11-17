@@ -497,11 +497,14 @@ def run_flask():
         return
 
     # Khởi tạo và chạy Bot Discord trong một luồng (thread) riêng
-    discord_thread = threading.Thread(target=lambda: bot.loop.run_until_complete(bot.start()
-
-        # Bật Flask Web Server trong luồng chính
+    discord_thread = threading.Thread(target=lambda: bot.loop.run_until_complete(bot.start(DISCORD_BOT_TOKEN)))
+    discord_thread.start()
+    
+    # Bật Flask Web Server trong luồng chính
     print("Web Server đã khởi động trên 0.0.0.0:5000")
     app.run(host='0.0.0.0', port=os.environ.get("PORT", 5000), debug=False)
 
- if __name__ == '__main__':  # <-- Dán dòng này (Không thụt đầu dòng)
-    run_flask()              # <-- Dán dòng này (Thụt vào 4 khoảng trắng)
+
+if __name__ == '__main__':
+    run_flask()
+    
