@@ -177,7 +177,7 @@ def web_claim_candy():
 def home():
     """TRANG CHỦ - Giao diện SIÊU HIỆN ĐẠI MỚI."""
     global temp_message
-    global bot # <<< DÒNG FIX LỖI ỔN ĐỊNH SERVER
+    global bot # <<< DÒNG FIX LỖI ỔN ĐỊNH SERVER 1/2
 
     # Dữ liệu Bảng Xếp Hạng Hcoin (Giả lập)
     leaderboard_data = [
@@ -188,6 +188,9 @@ def home():
         {"rank": 5, "name": "Bí Ngô", "hcoin": 4000},
     ]
 
+    # --- CODE LẤY DỮ LIỆU CHỨNG KHOÁN (FEEDS STOCK DATA) ---
+    stock_data = generate_stock_prices() # <<< DÒNG FIX LỖI NAME ERROR 'stock' 2/2
+    
     # Kiểm tra an toàn trước khi truy cập bot.user
     if bot.is_ready() and bot.user:
         bot_status_name = bot.user.name
@@ -206,6 +209,22 @@ def home():
             <td data-label="Hạng">{item['rank']}</td>
             <td data-label="Tên">{item['name']}</td>
             <td data-label="Hcoin">{item['hcoin']:,}</td>
+        </tr>
+        """
+        
+    # Lấy dữ liệu Bảng Chứng khoán HTML
+    html_stock_table = ""
+    for stock in stock_data: # <<< 'stock' đã được định nghĩa qua 'stock_data'
+        is_positive = stock['change_abs'].startswith('+')
+        color = '#00FF00' if is_positive else '#FF0000' # Xanh lá/Đỏ Neon
+        arrow = '▲' if is_positive else '▼'
+
+        html_stock_table += f"""
+        <tr>
+            <td data-label="Mã CK"><strong>{stock['ticker']}</strong></td>
+            <td data-label="Giá">{stock['price']}</td>
+            <td data-label="Thay đổi" style="color: {color}; font-weight: bold;">{arrow} {stock['change_abs']}</td>
+            <td data-label="% Thay đổi" style="color: {color};">{stock['change_percent']}</td>
         </tr>
         """
         
@@ -470,7 +489,7 @@ def home():
                         </tr>
                     </thead>
                     <tbody id="stock-body">
-                        </tbody>
+                        {html_stock_table} </tbody>
                 </table>
                 <p style="font-size: 0.8em; margin-top: 10px; color: #888;">Dữ liệu cập nhật liên tục (giả lập).</p>
             </div>
@@ -522,11 +541,4 @@ def run_flask():
     discord_thread.start()
     
     # Bật Flask Web Server trong luồng chính
-    print("Web Server đã khởi động trên 0.0.0.0:5000")
-    # Thay đổi app.run để chỉ chạy Flask và không chạy bot.run() ở đây nữa
-    app.run(host='0.0.0.0', port=os.environ.get("PORT", 5000), debug=False)
-
-
-if __name__ == '__main__':
-    run_flask()
-    
+    print("Web S
