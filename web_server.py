@@ -1,15 +1,16 @@
 import json
 import os
 import time
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, redirect, url_for
 import disnake
 from disnake.ext import commands
 import threading
 
 # -------------------------------------------------------------------
-# 0. CẤU HÌNH DỮ LIỆU VÀ CHỨC NĂNG LƯU/TẢI FILE
+# 0. CẤU HÌNH DỮ LIỆU VÀ BIẾN TOÀN CỤC
 # -------------------------------------------------------------------
 USERS_FILE = 'users.json'
+temp_message = None # Biến tạm để lưu thông báo chuyển hướng
 
 def load_data():
     """Tải dữ liệu người dùng từ tệp JSON."""
@@ -87,23 +88,58 @@ async def doikeo_command(inter: disnake.ApplicationCommandInteraction):
 
 
 # -------------------------------------------------------------------
-# 3. LOGIC FLASK WEB SERVER (CÁC API ROUTES VÀ TRANG CHỦ)
+# 3. LOGIC FLASK WEB SERVER (XỬ LÝ NHẬN KẸO QUA WEB)
 # -------------------------------------------------------------------
 
-@app.route('/claim', methods=['POST'])
-def claim_candy_api():
-    """API cho các chức năng Web sau này, hiện tại ưu tiên dùng lệnh Discord."""
-    return jsonify({'status': 'info', 'message': 'Vui lòng dùng lệnh /doikeo trong Discord.'})
+@app.route('/web_claim', methods=['POST'])
+def web_claim_candy():
+    global temp_message
+    
+    # Lấy User ID từ form
+    user_id = request.form.get('discord_id')
+    candy_to_add = 50
+    cooldown = 24 * 60 * 60 # 24 giờ
 
-@app.route('/exchange', methods=['POST'])
-def exchange_candy_api():
-    """API cho các chức năng Web sau này, hiện tại ưu tiên dùng lệnh Discord."""
-    return jsonify({'status': 'info', 'message': 'Vui lòng dùng lệnh /doikeo trong Discord.'})
+    # Xác thực ID (phải là số)
+    if not user_id or not user_id.isdigit():
+        temp_message = "🚨 Lỗi: Vui lòng nhập **ID Discord** hợp lệ (chỉ là số)."
+        return redirect(url_for('home'))
+
+    users_data = load_data()
+    current_time = int(time.time())
+    
+    # Khởi tạo người dùng nếu chưa có
+    if user_id not in users_data:
+        users_data[user_id] = {'candies': 0, 'last_claim': 0}
+
+    last_claim = users_data[user_id].get('last_claim', 0)
+    
+    # KIỂM TRA COOLDOWN
+    if current_time - last_claim < cooldown:
+        remaining = cooldown - (current_time - last_claim)
+        
+        # Chuyển đổi giây còn lại thành giờ và phút
+        hours = int(remaining // 3600)
+        minutes = int((remaining % 3600) // 60)
+        
+        temp_message = f"🛑 Đã nhận rồi! Vui lòng chờ {hours} giờ {minutes} phút nữa."
+        return redirect(url_for('home'))
+    
+    # Logic CỘNG KẸO và CẬP NHẬT COOLDOWN
+    users_data[user_id]['candies'] += candy_to_add
+    users_data[user_id]['last_claim'] = current_time
+    
+    save_data(users_data) 
+    
+    temp_message = f"🎉 CHÚC MỪNG! ID {user_id} đã nhận thành công {candy_to_add} Kẹo Halloween!"
+    return redirect(url_for('home'))
 
 
 @app.route('/', methods=['GET'])
 def home():
-    """TRANG CHỦ - Giao diện Halloween ĐÃ KHÔI PHỤC."""
+    """TRANG CHỦ - Giao diện Halloween VỚI FORM NHẬN KẸO THẬT."""
+    global temp_message
+    
     # Dữ liệu Bảng Xếp Hạng Hcoin (Chủ đề Halloween)
     leaderboard_data = [
         {"rank": 1, "name": "Bóng Ma", "hcoin": 66666},
@@ -127,6 +163,12 @@ def home():
         </tr>
         """
         
+    # HIỂN THỊ THÔNG BÁO TỪ REDIRECT
+    alert_html = ""
+    if temp_message:
+        alert_html = f'<div class="alert-message">{temp_message}</div>'
+        temp_message = None # Xóa thông báo sau khi hiển thị
+
     # Trả về toàn bộ nội dung HTML với CSS chủ đề Halloween và form nhận kẹo
     return f"""
     <!DOCTYPE html>
@@ -222,17 +264,17 @@ def home():
             .candy-box button:hover {{
                 background-color: #e05c00;
             }}
+            .alert-message {{
+                padding: 15px;
+                background-color: #ff6600;
+                color: white;
+                border-radius: 8px;
+                margin-bottom: 20px;
+                font-weight: bold;
+            }}
         </style>
         <script>
-            // Logic đã FIX: Khuyến khích dùng lệnh Discord
-            function receiveCandy() {{
-                const username = document.getElementById('username').value;
-                if (username) {{
-                    alert('🎃 Cảm ơn ' + username + '! Vui lòng dùng lệnh /doikeo trong Discord để thực sự nhận Kẹo!');
-                }} else {{
-                    alert('Vui lòng nhập tên người chơi Discord của bạn!');
-                }}
-            }}
+            // LƯU Ý: Hàm JS cũ đã bị xóa, chúng ta dùng FORM POST thẳng đến server
         </script>
     </head>
     <body>
@@ -240,12 +282,16 @@ def home():
             <h1>🎃 Lễ Hội Ma Quái Halloween!</h1>
             <div class="status-box">👻 Trạng thái Bot: {bot_status}</div>
             
+            {alert_html}
+
             <div class="candy-box">
-                <h2>🎁 Nhận Kẹo Halloween! (Dùng Lệnh Discord)</h2>
-                <p>Nhập tên Discord của bạn và nhấn nút. Sau đó, **dùng lệnh /doikeo trong Discord** để nhận kẹo thực sự!</p>
+                <h2>🎁 Nhận Kẹo Halloween qua Web!</h2>
+                <p>Nhập **ID Discord** của bạn (chỉ là số) để nhận **50 Kẹo** miễn phí mỗi 24 giờ!</p>
                 
-                <input type="text" id="username" placeholder="Nhập Tên Discord của bạn">
-                <button onclick="receiveCandy()">Nhận Kẹo Halloween</button>
+                <form method="POST" action="/web_claim">
+                    <input type="text" id="discord_id" name="discord_id" placeholder="Nhập ID Discord của bạn (ví dụ: 1234567890)">
+                    <button type="submit">Nhận Kẹo Halloween</button>
+                </form>
             </div>
 
             <h2>📊 Bảng Xếp Hạng Hcoin (Ma Quái)</h2>
@@ -271,7 +317,7 @@ def home():
     """
     
 # -------------------------------------------------------------------
-# 4. CHẠY CẢ HAI CÙNG LÚC
+# 5. CHẠY CẢ HAI CÙNG LÚC
 # -------------------------------------------------------------------
 
 def run_flask():
@@ -291,4 +337,3 @@ def run_flask():
 
 if __name__ == '__main__':
     run_flask()
-        
