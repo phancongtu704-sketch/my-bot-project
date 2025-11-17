@@ -1,4 +1,4 @@
-# File: web_server.py (Code Web Server + Discord Bot - Thêm lệnh /xemkeo)
+# File: web_server.py (Code Web Server + Discord Bot - Sửa logic Nhận Kẹo)
 
 from flask import Flask, jsonify
 import disnake
@@ -52,7 +52,7 @@ async def doikeo_command(inter: disnake.ApplicationCommandInteraction, soluong: 
 # Lệnh Xẹt MỚI: /xemkeo
 @bot.slash_command(name="xemkeo", description="Xem số dư Kẹo Halloween hiện tại.")
 async def xemkeo_command(inter: disnake.ApplicationCommandInteraction):
-    # Giả lập số kẹo: Sau này có thể kết nối database để lấy số dư thật
+    # Giả lập số kẹo
     await inter.response.send_message(
         f"🎃 {inter.author.mention}, bạn hiện đang có **50 Kẹo Halloween**.", 
         ephemeral=True
@@ -182,11 +182,11 @@ def home():
             }}
         </style>
         <script>
-            // Hàm JavaScript giả lập nhận kẹo
+            // Sửa logic: Chỉ hiển thị thông báo và khuyến khích dùng lệnh Discord
             function receiveCandy() {{
                 const username = document.getElementById('username').value;
                 if (username) {{
-                    alert('🎃 Chúc mừng ' + username + '! Bạn đã nhận được Kẹo Halloween!');
+                    alert('🎃 Cảm ơn ' + username + '! Vui lòng dùng lệnh /doikeo trong Discord để thực sự nhận Kẹo!');
                 }} else {{
                     alert('Vui lòng nhập tên người chơi Discord của bạn!');
                 }}
@@ -199,8 +199,8 @@ def home():
             <div class="status-box">👻 Trạng thái Bot: {bot_status}</div>
             
             <div class="candy-box">
-                <h2>🎁 Nhận Kẹo Halloween!</h2>
-                <p>Nhập tên Discord (ví dụ: Phantom#1234) để nhận kẹo miễn phí mỗi ngày!</p>
+                <h2>🎁 Nhận Kẹo Halloween! (Dùng Lệnh Discord)</h2>
+                <p>Nhập tên Discord của bạn và nhấn nút. Sau đó, **dùng lệnh /doikeo trong Discord** để nhận kẹo thực sự!</p>
                 
                 <input type="text" id="username" placeholder="Nhập Tên Discord của bạn">
                 <button onclick="receiveCandy()">Nhận Kẹo Halloween</button>
@@ -221,7 +221,7 @@ def home():
             </table>
 
             <div class="command-info">
-                Sử dụng lệnh mới: Gõ **/** trong Discord và chọn lệnh **xemkeo** hoặc **doikeo**!
+                Các lệnh Bot: Gõ **/** trong Discord và chọn **hello**, **coin**, **xemkeo** hoặc **doikeo**!
             </div>
         </div>
     </body>
@@ -249,4 +249,3 @@ def run_flask():
 
 if __name__ == '__main__':
     run_flask()
-                   
