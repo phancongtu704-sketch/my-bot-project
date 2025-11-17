@@ -181,7 +181,47 @@ def web_claim_candy():
     
     temp_message = f"🎉 CHÚC MỪNG! ID {user_id} đã nhận thành công {candy_to_add} Kẹo Halloween!"
     return redirect(url_for('home'))
+@app.route('/web_collect_mined', methods=['POST'])
+def web_collect_mined_hcoin():
+    """Xử lý yêu cầu thu thập Hcoin đã đào từ form trên web (CỘNG Hcoin vào số dư)."""
+    global temp_message
+    
+    # Lấy dữ liệu từ form trên web
+    user_id = request.form.get('discord_id_collect')
+    amount_str = request.form.get('mined_amount')
 
+    # 1. Kiểm tra dữ liệu đầu vào
+    if not user_id or not amount_str:
+        temp_message = "🚨 Lỗi: Vui lòng nhập ID Discord và số lượng Hcoin đã đào."
+        return redirect(url_for('home'))
+
+    try:
+        amount = int(amount_str)
+    except ValueError:
+        temp_message = "🚨 Lỗi: Số lượng Hcoin phải là số nguyên."
+        return redirect(url_for('home'))
+        
+    if amount <= 0:
+        temp_message = "🚨 Lỗi: Số lượng thu thập phải lớn hơn 0."
+        return redirect(url_for('home'))
+
+    users_data = load_data()
+    
+    if user_id not in users_data:
+        temp_message = f"🚨 Lỗi: Không tìm thấy ID Discord {user_id}."
+        return redirect(url_for('home'))
+
+    # 2. Logic CỘNG Hcoin đã đào vào số dư chính
+    if 'hcoin' not in users_data[user_id]:
+        users_data[user_id]['hcoin'] = 0
+        
+    users_data[user_id]['hcoin'] += amount 
+    save_data(users_data) 
+    
+    # 3. Gửi thông báo thành công
+    temp_message = f"✅ THU THẬP THÀNH CÔNG! ID {user_id} đã cộng {amount:,} Hcoin vào số dư chính. Số dư mới: {users_data[user_id]['hcoin']:,}."
+    return redirect(url_for('home'))
+    
 
 @app.route('/', methods=['GET'])
 def home():
@@ -505,21 +545,22 @@ def home():
                     <input type="text" id="discord_id" name="discord_id" placeholder="Nhập ID Discord (chỉ là số)">
                     <button type="submit">CLAIM KẸO NGAY</button>
                 </form>
-                
                 <hr style="border-color: var(--border-color); margin: 25px 0;">
                 
-                <h2>⫸ RÚT HCOIN (Giả lập)</h2>
-                <p style="color: var(--mine-color); font-weight: bold;">Chức năng này cần dùng lệnh **/withdraw** trong Discord để nhập số lượng.</p>
+                <h2>⫸ THU THẬP HCOIN ĐÃ ĐÀO (Vào tài khoản bot)</h2>
+                <p style="color: var(--mine-color); font-weight: bold;">Nhập ID và số lượng Hcoin đã đào để cộng vào số dư chính của bạn.</p>
                 
-                <a href="https://discord.com/channels/@me" target="_blank"> 
-                    <button style="background-color: var(--mine-color); color: var(--dark-bg); border: none;">
-                        💸 ĐI ĐẾN DISCORD ĐỂ RÚT TIỀN
+                <form method="POST" action="/web_collect_mined">
+                    <input type="text" name="discord_id_collect" placeholder="ID Discord của bạn" required>
+                    <input type="number" name="mined_amount" placeholder="Số lượng Hcoin đã đào (ví dụ: 2000)" required>
+                    <button type="submit" style="background-color: var(--mine-color); color: var(--dark-bg); border: none;">
+                        💰 THU THẬP HCOIN NGAY
                     </button>
-                </a>
+                </form>
             </div>
             
-            
             <h2>⫸ BẢNG XẾP HẠNG HCOIN | TOP USERS</h2>
+            
             <table>
                 <thead>
                     <tr>
