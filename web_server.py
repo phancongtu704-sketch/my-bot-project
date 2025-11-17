@@ -523,8 +523,10 @@ def run_flask():
     
     # Bật Flask Web Server trong luồng chính
     print("Web Server đã khởi động trên 0.0.0.0:5000")
+    # Thay đổi app.run để chỉ chạy Flask và không chạy bot.run() ở đây nữa
     app.run(host='0.0.0.0', port=os.environ.get("PORT", 5000), debug=False)
 
 
 if __name__ == '__main__':
     run_flask()
+    
