@@ -1,7 +1,7 @@
 import json
 import os
 import time
-import random # Cần thiết cho việc giả lập giá cổ phiếu
+import random 
 from flask import Flask, request, jsonify, redirect, url_for
 import disnake
 from disnake.ext import commands
@@ -47,7 +47,6 @@ app = Flask(__name__)
 # -------------------------------------------------------------------
 # 2. LOGIC DISCORD BOT (LỆNH XẸT /)
 # -------------------------------------------------------------------
-# ... (Giữ nguyên các lệnh Discord: on_ready, hello, coin, xemkeo, doikeo) ...
 
 @bot.event
 async def on_ready():
@@ -138,7 +137,6 @@ def get_stock_data():
 
 @app.route('/web_claim', methods=['POST'])
 def web_claim_candy():
-    # ... (Giữ nguyên logic nhận kẹo qua Web bằng ID Discord) ...
     global temp_message
     
     user_id = request.form.get('discord_id')
@@ -325,11 +323,11 @@ def home():
                     .then(response => response.json())
                     .then(data => {{
                         const tbody = document.getElementById('stock-body');
-                        tbody.innerHTML = ''; // Xóa dữ liệu cũ
+                        tbody.innerHTML = ''; 
 
                         data.forEach(stock => {{
                             const is_positive = stock.change_abs.startsWith('+');
-                            const color = is_positive ? '#43b581' : '#ff6600'; // Xanh lá hoặc Cam/Đỏ
+                            const color = is_positive ? '#43b581' : '#ff6600'; 
                             const arrow = is_positive ? '▲' : '▼';
                             
                             const row = `
@@ -357,7 +355,7 @@ def home():
     <body>
         <div class="container">
             <h1>🎃 Lễ Hội Ma Quái Halloween!</h1>
-            <div class="status-box">👻 Trạng thái Bot: {bot_status}</div>
+            <div class="status-box">👻 Trạng thái Bot: {bot.user.name} (Online)</div>
             
             {alert_html}
 
@@ -427,8 +425,10 @@ def run_flask():
     
     # Bật Flask Web Server trong luồng chính
     print("Web Server đã khởi động trên 0.0.0.0:5000")
+    # Đảm bảo Flask chạy không có debug trên Render
     app.run(host='0.0.0.0', port=os.environ.get("PORT", 5000), debug=False)
 
 
 if __name__ == '__main__':
     run_flask()
+    
