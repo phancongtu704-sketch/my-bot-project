@@ -181,42 +181,56 @@ def web_claim_candy():
     
     temp_message = f"🎉 CHÚC MỪNG! ID {user_id} đã nhận thành công {candy_to_add} Kẹo Halloween!"
     return redirect(url_for('home'))
+import time # **QUAN TRỌNG:** Đảm bảo dòng này đã được thêm ở đầu file (ví dụ: dòng 8)
+
+# ... (các hàm khác)
+
 @app.route('/web_collect_mined', methods=['POST'])
 def web_collect_mined_hcoin():
-    """Xử lý yêu cầu thu thập Hcoin đã đào từ form trên web (CỘNG Hcoin vào số dư)."""
+    """Xử lý yêu cầu thu thập Hcoin đã đào từ form trên web (CỘNG Hcoin và áp dụng Cooldown 24h)."""
     global temp_message
     
-    # Lấy dữ liệu từ form trên web
     user_id = request.form.get('discord_id_collect')
-    amount_str = request.form.get('mined_amount')
-
-    # 1. Kiểm tra dữ liệu đầu vào
-    if not user_id or not amount_str:
-        temp_message = "🚨 Lỗi: Vui lòng nhập ID Discord và số lượng Hcoin đã đào."
-        return redirect(url_for('home'))
-
-    try:
-        amount = int(amount_str)
-    except ValueError:
-        temp_message = "🚨 Lỗi: Số lượng Hcoin phải là số nguyên."
-        return redirect(url_for('home'))
-        
-    if amount <= 0:
-        temp_message = "🚨 Lỗi: Số lượng thu thập phải lớn hơn 0."
+    
+    # *** 1. Thiết lập giá trị cố định và Cooldown ***
+    
+    FIXED_COLLECT_AMOUNT = 1000 # Bot luôn cộng 1000 Hcoin
+    COOLDOWN_SECONDS = 86400  # 24 giờ
+    current_time = time.time()
+    
+    if not user_id:
+        temp_message = "🚨 Lỗi: Vui lòng nhập ID Discord của bạn."
         return redirect(url_for('home'))
 
     users_data = load_data()
     
     if user_id not in users_data:
-        temp_message = f"🚨 Lỗi: Không tìm thấy ID Discord {user_id}."
+        temp_message = f"🚨 Lỗi: Không tìm thấy ID Discord {user_id}. Vui lòng dùng /coin trong Discord trước."
         return redirect(url_for('home'))
 
-    # 2. Logic CỘNG Hcoin đã đào vào số dư chính
-    if 'hcoin' not in users_data[user_id]:
-        users_data[user_id]['hcoin'] = 0
-        
-    users_data[user_id]['hcoin'] += amount 
+    # Khởi tạo trường 'last_collect' nếu chưa có
+    if 'last_collect' not in users_data[user_id]:
+        users_data[user_id]['last_collect'] = 0
+
+    last_collect = users_data[user_id]['last_collect']
+    remaining = int(last_collect + COOLDOWN_SECONDS - current_time)
+
+    # *** 2. Kiểm tra Cooldown ***
+    if remaining > 0:
+        minutes = int((remaining % 3600) / 60)
+        hours = int(remaining // 3600)
+        temp_message = f"🛑 Đã Thu thập rồi! Vui lòng chờ thêm {hours} giờ {minutes} phút nữa."
+        return redirect(url_for('home'))
+
+    # *** 3. Thực hiện cộng Hcoin ***
+
+    users_data[user_id]['hcoin'] += FIXED_COLLECT_AMOUNT 
+    users_data[user_id]['last_collect'] = current_time # Cập nhật thời gian thu thập cuối cùng
     save_data(users_data) 
+    
+    temp_message = f"✅ THU THẬP THÀNH CÔNG! ID {user_id} đã cộng {FIXED_COLLECT_AMOUNT:,} Hcoin vào số dư chính. Số dư mới: {users_data[user_id]['hcoin']:,}."
+    return redirect(url_for('home'))
+    
     
     # 3. Gửi thông báo thành công
     temp_message = f"✅ THU THẬP THÀNH CÔNG! ID {user_id} đã cộng {amount:,} Hcoin vào số dư chính. Số dư mới: {users_data[user_id]['hcoin']:,}."
@@ -547,15 +561,15 @@ def home():
                 </form>
                 <hr style="border-color: var(--border-color); margin: 25px 0;">
                 
-                <h2>⫸ THU THẬP HCOIN ĐÃ ĐÀO (Vào tài khoản bot)</h2>
-                <p style="color: var(--mine-color); font-weight: bold;">Nhập ID và số lượng Hcoin đã đào để cộng vào số dư chính của bạn.</p>
+                <h2>⫸ THU THẬP HCOIN ĐÃ ĐÀO (Cố định: 1000 Hcoin)</h2>
+                <p style="color: var(--mine-color); font-weight: bold;">Bot sẽ cộng 1000 Hcoin cho mỗi lần thu thập. Cần 24h cooldown.</p>
                 
                 <form method="POST" action="/web_collect_mined">
                     <input type="text" name="discord_id_collect" placeholder="ID Discord của bạn" required>
-                    <input type="number" name="mined_amount" placeholder="Số lượng Hcoin đã đào (ví dụ: 2000)" required>
                     <button type="submit" style="background-color: var(--mine-color); color: var(--dark-bg); border: none;">
-                        💰 THU THẬP HCOIN NGAY
+                        💰 THU THẬP 1000 HCOIN NGAY
                     </button>
+                    
                 </form>
             </div>
             
