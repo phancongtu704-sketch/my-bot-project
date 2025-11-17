@@ -177,7 +177,8 @@ def web_claim_candy():
 def home():
     """TRANG CHỦ - Giao diện SIÊU HIỆN ĐẠI MỚI."""
     global temp_message
-    
+    global bot # <<< DÒNG FIX LỖI ỔN ĐỊNH SERVER
+
     # Dữ liệu Bảng Xếp Hạng Hcoin (Giả lập)
     leaderboard_data = [
         {"rank": 1, "name": "Bóng Ma", "hcoin": 66666},
@@ -527,4 +528,3 @@ def run_flask():
 
 if __name__ == '__main__':
     run_flask()
-        
