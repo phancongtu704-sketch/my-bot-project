@@ -13,9 +13,6 @@ import threading
 USERS_FILE = 'users.json'
 temp_message = None 
 
-# Thiết lập tốc độ đào (100 Hcoin/giây)
-Hcoin_PER_SECOND = 100 
-
 def load_data():
     """Tải dữ liệu người dùng từ tệp JSON."""
     if os.path.exists(USERS_FILE):
@@ -37,7 +34,8 @@ def save_data(data):
 # -------------------------------------------------------------------
 DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN") 
 intents = disnake.Intents.default()
-bot = commands.Bot(intents=intents)
+# Sử dụng command_prefix='' để ngăn bot phản ứng với các prefix cũ
+bot = commands.Bot(command_prefix='', intents=intents) 
 app = Flask(__name__)
 
 # -------------------------------------------------------------------
@@ -51,13 +49,13 @@ async def on_ready():
 @bot.slash_command(name="hello", description="Kiểm tra trạng thái bot và chào mừng.")
 async def hello_command(inter: disnake.ApplicationCommandInteraction):
     await inter.response.send_message(
-        f"Chào {inter.author.mention}! Bot Discord đang chạy 24/7."
+        f"Chào {inter.author.mention}! Bot Discord đang chạy 24/7.",
+        ephemeral=True # Chỉ người dùng thấy
     )
 
 @bot.slash_command(name="coin", description="Xem số Hcoin hiện tại của bạn.")
 async def coin_command(inter: disnake.ApplicationCommandInteraction):
-    # Cần tích hợp với logic coin thực tế nếu có
-    await inter.response.send_message(f"Bạn đang có 10,000 Hcoin.", ephemeral=True)
+    await inter.response.send_message(f"Bạn đang có 10,000 Hcoin (Giả lập).", ephemeral=True)
 
 @bot.slash_command(name="xemkeo", description="Xem số dư Kẹo Halloween hiện tại.")
 async def xemkeo_command(inter: disnake.ApplicationCommandInteraction):
@@ -81,11 +79,16 @@ async def doikeo_command(inter: disnake.ApplicationCommandInteraction):
         await inter.response.send_message(f"Không đủ kẹo! Bạn có {current_candies}, cần {candy_cost}.", ephemeral=True)
         return
 
+    # Giả lập trừ kẹo và thông báo
+    if user_id not in users_data:
+         users_data[user_id] = {'candies': 0, 'last_claim': 0}
+         
     users_data[user_id]['candies'] -= candy_cost 
     save_data(users_data) 
     
     await inter.response.send_message(
         f"🎉 {inter.author.mention} đã đổi thành công **{candy_cost} Kẹo Halloween** lấy **2500 Hcoin** (Giả lập). Số kẹo còn lại: {users_data[user_id]['candies']}",
+        ephemeral=True # Giữ riêng tư cho giao dịch
     )
 
 # -------------------------------------------------------------------
@@ -94,6 +97,7 @@ async def doikeo_command(inter: disnake.ApplicationCommandInteraction):
 
 @app.route('/web_claim', methods=['POST'])
 def web_claim_candy():
+    """Xử lý yêu cầu nhận kẹo 24h từ web."""
     global temp_message
     
     user_id = request.form.get('discord_id')
@@ -134,6 +138,7 @@ def home():
     """TRANG CHỦ - Giao diện SIÊU HIỆN ĐẠI với MINING GAME."""
     global temp_message
     global bot 
+    Hcoin_PER_SECOND = 100 # Cần định nghĩa lại cho JS
 
     # Dữ liệu Bảng Xếp Hạng Hcoin (Giả lập)
     leaderboard_data = [
@@ -158,7 +163,8 @@ def home():
     if bot.is_ready() and bot.user:
         bot_status_name = bot.user.name
     else:
-        bot_status_name = "Discord Bot"
+        # Tên tạm thời nếu bot chưa kết nối hoàn toàn
+        bot_status_name = "Discord Bot 704" 
 
     # Trạng thái Bot
     status_text = "ONLINE" if bot.is_ready() else "KHỞI ĐỘNG"
@@ -372,13 +378,13 @@ def home():
         <script>
             let hcoin_balance = 0; // Số Hcoin đang đào (Chỉ hiển thị trên web)
             let mining_interval;
-            const Hcoin_PER_SECOND = 100;
+            const Hcoin_PER_SECOND = {Hcoin_PER_SECOND}; // Dùng biến từ Python
             const update_display = () => {{
                 document.getElementById('hcoin-count').innerText = hcoin_balance.toLocaleString() + " Hcoin";
             }};
             
             const start_mining = () => {{
-                if (mining_interval) return; // Đã chạy rồi thì không chạy nữa
+                if (mining_interval) return; 
 
                 // Đặt nút đào thành ẩn, hiện nút tắt
                 document.getElementById('start-btn').classList.add('hidden');
@@ -390,7 +396,7 @@ def home():
                     update_display();
                 }}, 1000); 
                 
-                document.getElementById('mining-status').innerText = "Đang Đào... ({Hcoin_PER_SECOND} Hcoin/s)";
+                document.getElementById('mining-status').innerText = "Đang Đào... (" + Hcoin_PER_SECOND.toLocaleString() + " Hcoin/s)";
             }};
 
             const stop_mining = () => {{
@@ -409,7 +415,7 @@ def home():
             // Khởi tạo trạng thái ban đầu
             window.onload = () => {{
                 update_display();
-                document.getElementById('mining-status').innerText = "Sẵn sàng Đào Hcoin (100 Hcoin/s)";
+                document.getElementById('mining-status').innerText = "Sẵn sàng Đào Hcoin (" + Hcoin_PER_SECOND.toLocaleString() + " Hcoin/s)";
             }};
         </script>
     </head>
@@ -484,14 +490,4 @@ def run_flask():
         return
 
     # Khởi tạo và chạy Bot Discord trong một luồng (thread) riêng
-    discord_thread = threading.Thread(target=lambda: bot.loop.run_until_complete(bot.start(DISCORD_BOT_TOKEN)))
-    discord_thread.start()
-    
-    # Bật Flask Web Server trong luồng chính
-    print("Web Server đã khởi động trên 0.0.0.0:5000")
-    app.run(host='0.0.0.0', port=os.environ.get("PORT", 5000), debug=False)
-
-
-if __name__ == '__main__':
-    run_flask()
-    
+    # Đây là phương pháp tố
