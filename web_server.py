@@ -1,4 +1,4 @@
-# File: web_server.py (Code Web Server + Discord Bot - Giao diện Halloween)
+# File: web_server.py (Code Web Server + Discord Bot - Lệnh và Giao diện mới)
 
 from flask import Flask, jsonify
 import disnake
@@ -39,9 +39,19 @@ async def hello_command(inter: disnake.ApplicationCommandInteraction):
 async def coin_command(inter: disnake.ApplicationCommandInteraction):
     await inter.response.send_message(f"Bạn đang có 10,000 Hcoin.", ephemeral=True)
 
+# Lệnh Xẹt MỚI: /doikeo
+@bot.slash_command(name="doikeo", description="Đổi Kẹo Halloween thành Hcoin (Chức năng mới).")
+async def doikeo_command(inter: disnake.ApplicationCommandInteraction, soluong: int = 10):
+    if soluong > 0:
+        await inter.response.send_message(
+            f"🎉 {inter.author.mention} đã đổi thành công **{soluong} Kẹo Halloween** thành **{soluong * 50} Hcoin**!"
+        )
+    else:
+        await inter.response.send_message("Số lượng kẹo đổi phải lớn hơn 0.", ephemeral=True)
+
 
 # -------------------------------------------------------------------
-# 3. LOGIC FLASK WEB SERVER (Giao diện Halloween)
+# 3. LOGIC FLASK WEB SERVER (Giao diện Halloween mới)
 # -------------------------------------------------------------------
 
 @app.route('/', methods=['GET'])
@@ -55,7 +65,6 @@ def home():
         {"rank": 5, "name": "Bí Ngô", "hcoin": 4000},
     ]
 
-    # Bắt đầu tạo nội dung HTML
     html_table = ""
     for item in leaderboard_data:
         html_table += f"""
@@ -66,10 +75,9 @@ def home():
         </tr>
         """
     
-    # Kiểm tra trạng thái bot
     bot_status = f"{bot.user} (Online)" if bot.is_ready() else "Bot đang khởi động..."
 
-    # Trả về toàn bộ nội dung HTML với CSS chủ đề Halloween
+    # Trả về toàn bộ nội dung HTML với CSS chủ đề Halloween và thêm form nhận kẹo
     return f"""
     <!DOCTYPE html>
     <html>
@@ -136,13 +144,60 @@ def home():
                 padding: 15px; 
                 border-top: 2px dashed #ff6600;
             }}
+            .candy-box {{
+                background: #333;
+                padding: 20px;
+                border-radius: 10px;
+                margin-bottom: 30px;
+                border: 2px solid #ff6600;
+            }}
+            .candy-box input[type=text], .candy-box button {{
+                padding: 10px;
+                margin: 5px;
+                border-radius: 5px;
+                border: 1px solid #555;
+                font-size: 1em;
+            }}
+            .candy-box input[type=text] {{
+                background: #222;
+                color: white;
+                width: 60%;
+            }}
+            .candy-box button {{
+                background-color: #ff6600;
+                color: white;
+                cursor: pointer;
+                transition: background-color 0.3s;
+            }}
+            .candy-box button:hover {{
+                background-color: #e05c00;
+            }}
         </style>
+        <script>
+            // Hàm JavaScript giả lập nhận kẹo
+            function receiveCandy() {{
+                const username = document.getElementById('username').value;
+                if (username) {{
+                    alert('🎃 Chúc mừng ' + username + '! Bạn đã nhận được Kẹo Halloween!');
+                }} else {{
+                    alert('Vui lòng nhập tên người chơi Discord của bạn!');
+                }}
+            }}
+        </script>
     </head>
     <body>
         <div class="container">
             <h1>🎃 Lễ Hội Ma Quái Halloween!</h1>
             <div class="status-box">👻 Trạng thái Bot: {bot_status}</div>
             
+            <div class="candy-box">
+                <h2>🎁 Nhận Kẹo Halloween!</h2>
+                <p>Nhập tên Discord (ví dụ: Phantom#1234) để nhận kẹo miễn phí mỗi ngày!</p>
+                
+                <input type="text" id="username" placeholder="Nhập Tên Discord của bạn">
+                <button onclick="receiveCandy()">Nhận Kẹo Halloween</button>
+            </div>
+
             <h2>📊 Bảng Xếp Hạng Hcoin (Ma Quái)</h2>
             <table>
                 <thead>
@@ -158,7 +213,7 @@ def home():
             </table>
 
             <div class="command-info">
-                Để thử bot: Gõ lệnh **/** trong Discord và chọn **hello** hoặc **coin**.
+                Sử dụng lệnh mới: Gõ **/** trong Discord và chọn lệnh **doikeo**!
             </div>
         </div>
     </body>
@@ -186,3 +241,4 @@ def run_flask():
 
 if __name__ == '__main__':
     run_flask()
+    
