@@ -496,8 +496,8 @@ def home():
                 <h2>⫸ SỰ KIỆN & CẬP NHẬT MỚI</h2>
                                 {html_event_list}
             </div>
-            
-            <div class="claim-card">
+
+                        <div class="claim-card">
                 <h2>⫸ NHẬN KẸO MIỄN PHÍ | CLAIM REWARD</h2>
                 <p style="color: #bbb;">Nhập **ID Discord** để nhận **50 Kẹo** mỗi 24 giờ. Đừng quên /doikeo trong Discord!</p>
                 
@@ -505,7 +505,19 @@ def home():
                     <input type="text" id="discord_id" name="discord_id" placeholder="Nhập ID Discord (chỉ là số)">
                     <button type="submit">CLAIM KẸO NGAY</button>
                 </form>
+                
+                <hr style="border-color: var(--border-color); margin: 25px 0;">
+                
+                <h2>⫸ RÚT HCOIN (Giả lập)</h2>
+                <p style="color: var(--mine-color); font-weight: bold;">Chức năng này cần dùng lệnh **/withdraw** trong Discord để nhập số lượng.</p>
+                
+                <a href="https://discord.com/channels/@me" target="_blank"> 
+                    <button style="background-color: var(--mine-color); color: var(--dark-bg); border: none;">
+                        💸 ĐI ĐẾN DISCORD ĐỂ RÚT TIỀN
+                    </button>
+                </a>
             </div>
+            
             
             <h2>⫸ BẢNG XẾP HẠNG HCOIN | TOP USERS</h2>
             <table>
