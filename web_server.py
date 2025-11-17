@@ -17,15 +17,26 @@ temp_message = None
 Hcoin_PER_SECOND = 100 
 
 def load_data():
-    """Tải dữ liệu người dùng từ tệp JSON."""
+    """Tải dữ liệu người dùng từ tệp JSON và đảm bảo các trường cần thiết."""
+    users_data = {}
     if os.path.exists(USERS_FILE):
         try:
             with open(USERS_FILE, 'r') as f:
-                return json.load(f)
+                users_data = json.load(f)
         except json.JSONDecodeError:
             print(f"Lỗi: Không thể giải mã JSON từ {USERS_FILE}. Khởi tạo lại dữ liệu.")
-            return {}
-    return {}
+            users_data = {}
+
+    # Đảm bảo mỗi user có trường hcoin, candies và last_claim
+    for user_id, data in users_data.items():
+        if 'hcoin' not in data:
+            data['hcoin'] = 10000 # Gán Hcoin mặc định
+        if 'candies' not in data:
+            data['candies'] = 0
+        if 'last_claim' not in data:
+            data['last_claim'] = 0
+    
+    return users_data
 
 def save_data(data):
     """Lưu dữ liệu người dùng vào tệp JSON."""
@@ -57,7 +68,14 @@ async def hello_command(inter: disnake.ApplicationCommandInteraction):
 
 @bot.slash_command(name="coin", description="Xem số Hcoin hiện tại của bạn.")
 async def coin_command(inter: disnake.ApplicationCommandInteraction):
-    await inter.response.send_message(f"Bạn đang có 10,000 Hcoin (Giả lập).", ephemeral=True)
+    user_id = str(inter.author.id)
+    users_data = load_data()
+    hcoin_balance = users_data.get(user_id, {}).get('hcoin', 0)
+    
+    await inter.response.send_message(
+        f"💰 {inter.author.mention}, bạn hiện đang có **{hcoin_balance:,} Hcoin**.",
+        ephemeral=True
+    )
 
 @bot.slash_command(name="xemkeo", description="Xem số dư Kẹo Halloween hiện tại.")
 async def xemkeo_command(inter: disnake.ApplicationCommandInteraction):
@@ -73,6 +91,7 @@ async def xemkeo_command(inter: disnake.ApplicationCommandInteraction):
 async def doikeo_command(inter: disnake.ApplicationCommandInteraction):
     user_id = str(inter.author.id)
     candy_cost = 50 
+    hcoin_reward = 2500
     
     users_data = load_data()
     current_candies = users_data.get(user_id, {}).get('candies', 0)
@@ -82,14 +101,44 @@ async def doikeo_command(inter: disnake.ApplicationCommandInteraction):
         return
 
     if user_id not in users_data:
-         users_data[user_id] = {'candies': 0, 'last_claim': 0}
+         # Điều này hiếm khi xảy ra vì load_data đã xử lý, nhưng vẫn cần thiết
+         users_data[user_id] = {'candies': 0, 'last_claim': 0, 'hcoin': 10000} 
          
     users_data[user_id]['candies'] -= candy_cost 
+    users_data[user_id]['hcoin'] += hcoin_reward # Cộng Hcoin
     save_data(users_data) 
     
     await inter.response.send_message(
-        f"🎉 {inter.author.mention} đã đổi thành công **{candy_cost} Kẹo Halloween** lấy **2500 Hcoin** (Giả lập). Số kẹo còn lại: {users_data[user_id]['candies']}",
+        f"🎉 {inter.author.mention} đã đổi thành công **{candy_cost} Kẹo Halloween** lấy **{hcoin_reward:,} Hcoin**! Số kẹo còn lại: {users_data[user_id]['candies']}",
         ephemeral=True
+    )
+
+@bot.slash_command(name="withdraw", description="Rút Hcoin về tài khoản của bạn (Giả lập).")
+async def withdraw_command(inter: disnake.ApplicationCommandInteraction, amount: int):
+    user_id = str(inter.author.id)
+    
+    if amount <= 0:
+        await inter.response.send_message("Vui lòng nhập số lượng hợp lệ (> 0).", ephemeral=True)
+        return
+        
+    users_data = load_data()
+    current_hcoin = users_data.get(user_id, {}).get('hcoin', 0)
+    
+    if current_hcoin < amount:
+        await inter.response.send_message(
+            f"Không đủ Hcoin! Bạn có {current_hcoin:,}, cần {amount:,} để rút.", 
+            ephemeral=True
+        )
+        return
+        
+    # *Logic Giảm Hcoin sau khi rút*
+    users_data[user_id]['hcoin'] -= amount 
+    save_data(users_data) 
+    
+    # Giả lập gửi thông báo rút thành công
+    await inter.response.send_message(
+        f"✅ {inter.author.mention}, yêu cầu rút **{amount:,} Hcoin** đã được chấp nhận. Số Hcoin còn lại: {users_data[user_id]['hcoin']:,}.",
+        ephemeral=False
     )
 
 # -------------------------------------------------------------------
@@ -113,7 +162,7 @@ def web_claim_candy():
     current_time = int(time.time())
     
     if user_id not in users_data:
-        users_data[user_id] = {'candies': 0, 'last_claim': 0}
+        users_data[user_id] = {'candies': 0, 'last_claim': 0, 'hcoin': 10000} # Thêm Hcoin mặc định
 
     last_claim = users_data[user_id].get('last_claim', 0)
     
@@ -445,7 +494,7 @@ def home():
             
             <div class="event-list">
                 <h2>⫸ SỰ KIỆN & CẬP NHẬT MỚI</h2>
-                {html_event_list}
+                                {html_event_list}
             </div>
             
             <div class="claim-card">
@@ -473,7 +522,7 @@ def home():
             </table>
 
             <p style="margin-top: 50px; color: #888;">
-                Sử dụng lệnh **/** trong Discord và chọn **hello**, **coin**, **xemkeo** hoặc **doikeo**.
+                Sử dụng lệnh **/** trong Discord và chọn **hello**, **coin**, **xemkeo** hoặc **doikeo** (và **withdraw**).
             </p>
         </div>
     """
@@ -507,4 +556,5 @@ def run_flask():
 
 if __name__ == '__main__':
     run_flask()
-    
+            
+               
