@@ -11,7 +11,7 @@ import threading
 # 0. CẤU HÌNH DỮ LIỆU VÀ BIẾN TOÀN CỤC
 # -------------------------------------------------------------------
 USERS_FILE = 'users.json'
-temp_message = None # Biến tạm để lưu thông báo chuyển hướng
+temp_message = None 
 
 # Dữ liệu Chứng khoán giả lập ban đầu
 STOCK_PRICES = {
@@ -101,21 +101,15 @@ def generate_stock_prices():
     new_data = []
 
     for ticker, data in STOCK_PRICES.items():
-        # Mô phỏng biến động ngẫu nhiên (tăng/giảm tới 0.5)
         fluctuation = round(random.uniform(-0.5, 0.5), 2)
-        
-        # Tính toán giá mới và sự thay đổi
         new_price = round(data['price'] + fluctuation, 2)
         price_change = round(new_price - data['price'], 2)
         
-        # Đảm bảo giá không quá thấp (chỉ là giả lập)
         if new_price < 1.0:
             new_price = 1.0 
         
-        # Tính phần trăm thay đổi
         percent_change = round((price_change / data['price']) * 100, 2)
         
-        # Cập nhật trạng thái toàn cục cho lần gọi tiếp theo
         STOCK_PRICES[ticker]['price'] = new_price
         STOCK_PRICES[ticker]['change'] = price_change
         
@@ -186,7 +180,13 @@ def home():
         {"rank": 5, "name": "Bí Ngô", "hcoin": 4000},
     ]
 
-    bot_status = f"{bot.user} (Online)" if bot.is_ready() else "Bot đang khởi động..."
+    # SỬA LỖI Ở ĐÂY: Dùng bot.user.name an toàn hơn hoặc tên mặc định.
+    if bot.is_ready() and bot.user:
+        bot_status_name = bot.user.name
+    else:
+        bot_status_name = "Discord Bot"
+
+    bot_status = f"{bot_status_name} (Online)" if bot.is_ready() else "Bot đang khởi động..."
     
     # Lấy dữ liệu bảng xếp hạng HTML
     html_table = ""
@@ -210,7 +210,7 @@ def home():
     <!DOCTYPE html>
     <html>
     <head>
-        <title>🎃 Sự kiện Halloween - {bot.user.name}</title>
+        <title>🎃 Sự kiện Halloween - {bot_status_name}</title>
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Creepster&family=Roboto&display=swap');
             body {{ 
@@ -355,7 +355,7 @@ def home():
     <body>
         <div class="container">
             <h1>🎃 Lễ Hội Ma Quái Halloween!</h1>
-            <div class="status-box">👻 Trạng thái Bot: {bot.user.name} (Online)</div>
+            <div class="status-box">👻 Trạng thái Bot: {bot_status}</div>
             
             {alert_html}
 
@@ -389,17 +389,17 @@ def home():
 
             <h2>📊 Bảng Xếp Hạng Hcoin (Ma Quái)</h2>
             <table>
-                <thead>
-                    <tr>
-                        <th>Hạng</th>
-                        <th>Tên Quái Vật</th>
-                        <th>Số Kẹo Hcoin</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {html_table}
-                </tbody>
-            </table>
+                    <thead>
+                        <tr>
+                            <th>Hạng</th>
+                            <th>Tên Quái Vật</th>
+                            <th>Số Kẹo Hcoin</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {html_table}
+                    </tbody>
+                </table>
 
             <div class="command-info">
                 Các lệnh Bot: Gõ **/** trong Discord và chọn **hello**, **coin**, **xemkeo** hoặc **doikeo**!
@@ -425,9 +425,9 @@ def run_flask():
     
     # Bật Flask Web Server trong luồng chính
     print("Web Server đã khởi động trên 0.0.0.0:5000")
-    # Đảm bảo Flask chạy không có debug trên Render
     app.run(host='0.0.0.0', port=os.environ.get("PORT", 5000), debug=False)
 
 
 if __name__ == '__main__':
     run_flask()
+    
