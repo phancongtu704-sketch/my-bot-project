@@ -1,4 +1,4 @@
-# File: web_server.py (Code Web Server + Discord Bot - Lệnh và Giao diện mới)
+# File: web_server.py (Code Web Server + Discord Bot - Thêm lệnh /xemkeo)
 
 from flask import Flask, jsonify
 import disnake
@@ -39,7 +39,7 @@ async def hello_command(inter: disnake.ApplicationCommandInteraction):
 async def coin_command(inter: disnake.ApplicationCommandInteraction):
     await inter.response.send_message(f"Bạn đang có 10,000 Hcoin.", ephemeral=True)
 
-# Lệnh Xẹt MỚI: /doikeo
+# Lệnh Xẹt: /doikeo
 @bot.slash_command(name="doikeo", description="Đổi Kẹo Halloween thành Hcoin (Chức năng mới).")
 async def doikeo_command(inter: disnake.ApplicationCommandInteraction, soluong: int = 10):
     if soluong > 0:
@@ -49,9 +49,17 @@ async def doikeo_command(inter: disnake.ApplicationCommandInteraction, soluong: 
     else:
         await inter.response.send_message("Số lượng kẹo đổi phải lớn hơn 0.", ephemeral=True)
 
+# Lệnh Xẹt MỚI: /xemkeo
+@bot.slash_command(name="xemkeo", description="Xem số dư Kẹo Halloween hiện tại.")
+async def xemkeo_command(inter: disnake.ApplicationCommandInteraction):
+    # Giả lập số kẹo: Sau này có thể kết nối database để lấy số dư thật
+    await inter.response.send_message(
+        f"🎃 {inter.author.mention}, bạn hiện đang có **50 Kẹo Halloween**.", 
+        ephemeral=True
+    )
 
 # -------------------------------------------------------------------
-# 3. LOGIC FLASK WEB SERVER (Giao diện Halloween mới)
+# 3. LOGIC FLASK WEB SERVER (Giao diện Halloween)
 # -------------------------------------------------------------------
 
 @app.route('/', methods=['GET'])
@@ -213,7 +221,7 @@ def home():
             </table>
 
             <div class="command-info">
-                Sử dụng lệnh mới: Gõ **/** trong Discord và chọn lệnh **doikeo**!
+                Sử dụng lệnh mới: Gõ **/** trong Discord và chọn lệnh **xemkeo** hoặc **doikeo**!
             </div>
         </div>
     </body>
@@ -241,4 +249,4 @@ def run_flask():
 
 if __name__ == '__main__':
     run_flask()
-    
+                   
