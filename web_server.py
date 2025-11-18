@@ -5,7 +5,8 @@ import json
 from flask import Flask, request, jsonify, redirect, url_for
 from disnake.ext import commands
 import disnake
-import threading
+from gevent.pywsgi import WSGIServer
+from gevent import spawn
 
 # Tên file lưu dữ liệu người dùng
 USERS_FILE = 'users.json'
@@ -576,18 +577,16 @@ def home():
     
     return html_start
 
-def run_bot():
-    bot.run(DISCORD_BOT_TOKEN)
 
 def run_web():
-    # Chạy Web Server
-    app.run(host='0.0.0.0', port=5000)
+    # SỬ DỤNG GEOLINK để chạy Web Server trên luồng phụ
+    http_server = WSGIServer(('', 5000), app)
+    http_server.serve_forever()
 
 if __name__ == '__main__':
-    # Chạy Bot và Web trên hai luồng khác nhau
-    web_thread = threading.Thread(target=run_web)
-    bot_thread = threading.Thread(target=run_bot)
+    # Chạy web server (non-blocking) trên luồng phụ
+    spawn(run_web)
     
-    web_thread.start()
-    bot_thread.start()
+    # Chạy bot (blocking) trên luồng chính
+    run_bot()
     
