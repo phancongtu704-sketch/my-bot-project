@@ -2,7 +2,7 @@ import os
 from flask import Flask
 import discord
 from threading import Thread
-from discord.ext import commands # DÒNG MỚI ĐÃ THÊM
+from discord.ext import commands
 
 # === KHAI BÁO THÔNG SỐ ===
 DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN") 
@@ -11,25 +11,26 @@ PORT = os.environ.get("PORT", 5000)
 app = Flask(__name__)
 intents = discord.Intents.default()
 intents.message_content = True
-# THAY THẾ DÒNG CŨ BẰNG DÒNG NÀY:
+
+# Sử dụng commands.Bot
 bot = commands.Bot(command_prefix='!', intents=intents) 
 
 def run_bot():
     if DISCORD_BOT_TOKEN:
         bot.run(DISCORD_BOT_TOKEN)
     else:
-        print("LỖI: Thiếu Token bot! Vui lòng kiểm tra biến môi trường DISCORD_BOT_TOKEN trên Render.")
+        print("LỖI: Thiếu Token bot! Vui lòng kiểm tra biến môi trường DISCORD_BOT_TOKEN.")
 
 # === LOGIC BOT DISCORD ===
+
 @bot.event
 async def on_ready():
     print(f"Bot đã sẵn sàng: {bot.user}")
 
-# Sửa lại thành lệnh (command)
 @bot.command()
 async def ping(ctx):
     await ctx.send('Pong!')
-
+    
 # === LOGIC WEB SERVER (FLASK) ===
 @app.route('/')
 def home():
