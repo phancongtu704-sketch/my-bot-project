@@ -201,12 +201,14 @@ def home():
     # LẤY DỮ LIỆU BẢNG XẾP HẠNG THẬT TỪ FILE users.json
     users_data = load_data()
     
+    # Sắp xếp người dùng theo Hcoin giảm dần
     sorted_users = sorted(
         [(user_id, data['hcoin']) for user_id, data in users_data.items() if data.get('hcoin', 0) > 0],
         key=lambda x: x[1],
         reverse=True
     )
     
+    # KHỐI CODE SỬA LỖI NoneType/AttributeError (Lỗi Runtime Web)
     leaderboard_data = []
     rank = 1
     
@@ -215,13 +217,22 @@ def home():
         
         # LOGIC QUAN TRỌNG: Lấy Tên Người Dùng từ Discord
         try:
+            # Chắc chắn ID là số nguyên
             user = bot.get_user(int(user_id)) 
+            
+            # Xử lý lỗi NoneType: CHỈ truy cập user.name nếu user KHÔNG phải là None
             if user:
                 user_name = user.name
             else:
-                user_name = f"ID: {user_id}"
+                # Nếu bot không tìm thấy ID này, hiển thị ID
+                user_name = f"ID: {user_id}" 
         except ValueError:
+            # Nếu ID không phải là số (Lỗi: ValueError), hiển thị ID
             user_name = f"ID: {user_id}"
+        except Exception:
+            # Xử lý các lỗi khác (bao gồm lỗi NoneType)
+            user_name = f"ID: {user_id} (Lỗi Bot)"
+
         
         leaderboard_data.append({
             'rank': rank,
@@ -229,6 +240,8 @@ def home():
             'hcoin': hcoin
         })
         rank += 1
+    # KẾT THÚC KHỐI CODE SỬA LỖI NoneType/AttributeError
+    
     
     # DỮ LIỆU SỰ KIỆN (CỐ ĐỊNH)
     event_data = [
@@ -241,7 +254,7 @@ def home():
     ]
     
     
-    # LOGIC TRẠNG THÁI BOT (ĐÃ SỬA LỖI VÀ HỢP NHẤT)
+    # LOGIC TRẠNG THÁI BOT (ĐÃ SỬA LỖI CÚ PHÁP VÀ HỢP NHẤT)
     if bot.is_ready() and bot.user:
         bot_status_name = bot.user.name
     else:
@@ -254,7 +267,7 @@ def home():
     if not bot.is_ready():
         status_text = "KHỞI ĐỘNG..." 
         status_color = "#FFA500"
-        # *** BỔ SUNG DẤU BA CHẤM KHI BOT CHƯA SẴN SÀNG ***
+        # BỔ SUNG DẤU BA CHẤM KHI BOT CHƯA SẴN SÀNG
         bot_status_name = "..." 
     # KẾT THÚC LOGIC TRẠNG THÁI BOT
     
@@ -293,6 +306,7 @@ def home():
         """
 
     # PHẦN 1: HTML MỞ ĐẦU, CSS, VÀ JAVASCRIPT
+    # SỬ DỤNG bot_status_name ĐÃ KIỂM TRA ĐỂ TRÁNH LỖI NONE
     html_start = f"""
     <!DOCTYPE html>
     <html lang="vi">
@@ -547,12 +561,12 @@ def home():
                         💰 THU THẬP HCOIN NGAY
                     </button>
                 </form>
-            </div>
-
+            </div> 
+            
             <div class="dashboard-card leaderboard-card">
                 <h2>⫸ BẢNG XẾP HẠNG HCOIN | TOP USERS</h2>
                 {html_table}
-                <p style="margin-top: 50px; color: #888;">Sử dụng lệnh **/hello**, **/coin**, **/doikẹo** trong Discord và chọn **{bot.user.name}**.</p>
+                <p style="margin-top: 50px; color: #888;">Sử dụng lệnh **/hello**, **/coin**, **/doikẹo** trong Discord và chọn **{bot_status_name}**.</p>
             </div>
 
         </div>
