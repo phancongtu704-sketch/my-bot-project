@@ -564,12 +564,11 @@ def home():
     </body>
     </html>
     """
-    
-    return html_start
-
+    def run_bot():
+    bot.run(DISCORD_BOT_TOKEN)
 
 def run_web():
-    # SỬ DỤNG GEOLINK để chạy Web Server trên luồng phụ
+    # Sử dụng gevent để chạy Flask web server trên luồng phụ
     http_server = WSGIServer(('', 5000), app)
     http_server.serve_forever()
 
@@ -577,6 +576,6 @@ if __name__ == '__main__':
     # Chạy web server (non-blocking) trên luồng phụ
     spawn(run_web)
     
-    # Chạy bot (blocking) trên luồng chính
+    # Chạy bot (blocking) trên luồng chính, phải là dòng cuối cùng
     run_bot()
     
