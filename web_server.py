@@ -7,15 +7,15 @@ from disnake.ext import commands
 import disnake
 import threading
 
-# 0. CẤU HÌNH DỮ LIỆU VÀ BIẾN TOÀN CỤC
+# Tên file lưu dữ liệu người dùng
 USERS_FILE = 'users.json'
+# Biến tạm để lưu thông báo (sẽ hiển thị trên web)
 temp_message = None
 
-# Thiết lập tốc độ đào
+# Tốc độ đào Hcoin (100 Hcoin/giây)
 Hcoin_PER_SECOND = 100
 
 def load_data():
-    """Tải dữ liệu người dùng từ tệp JSON và đảm bảo các trường cần thiết."""
     users_data = {}
     if os.path.exists(USERS_FILE):
         try:
@@ -25,10 +25,10 @@ def load_data():
             print(f"LỖI: Không thể giải mã JSON từ {USERS_FILE}. Khởi tạo lại dữ liệu.")
             users_data = {}
 
-    # Đảm bảo mỗi user có trường hcoin, candies và last_claim
+    # Đảm bảo tất cả người dùng đều có các trường dữ liệu cần thiết
     for user_id, data in users_data.items():
         if 'hcoin' not in data:
-            data['hcoin'] = 10000 # Gán Hcoin mặc định
+            data['hcoin'] = 10000
         if 'candies' not in data:
             data['candies'] = 0
         if 'last_collect' not in data:
@@ -39,25 +39,23 @@ def load_data():
     return users_data
 
 def save_data(data):
-    """Lưu dữ liệu người dùng vào tệp JSON."""
     with open(USERS_FILE, 'w') as f:
         json.dump(data, f, indent=4)
 
-# 1. CẤU HÌNH DISCORD & FLASK
+# Khởi tạo Bot và Web
 DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN")
 intents = disnake.Intents.default()
 bot = commands.Bot(command_prefix='!', intents=intents)
 app = Flask(__name__)
 
-# 2. LOGIC DISCORD BOT (LỆNH XÉT /)
 @bot.event
 async def on_ready():
     print(f"✅ Discord Bot ĐÃ ĐĂNG NHẬP: {bot.user.name} (ID: {bot.user.id})")
 
+# Lệnh /hello (Đăng ký ID)
 @bot.slash_command(name="hello", description="Kiểm tra trạng thái bot và đăng ký ID")
 async def hello_command(inter: disnake.ApplicationCommandInteraction):
     await inter.response.send_message(f"👋 Chào bạn, tôi là {bot.user.name}. Bot Discord đang chạy 24/7. ID của bạn đã được đăng ký.")
-    # Logic đăng ký user (Duy trì code cũ)
     users_data = load_data()
     user_id_str = str(inter.author.id)
     if user_id_str not in users_data:
@@ -70,6 +68,7 @@ async def hello_command(inter: disnake.ApplicationCommandInteraction):
         save_data(users_data)
         await inter.followup.send("✅ ID Discord của bạn đã được đăng ký vào hệ thống.")
 
+# Lệnh /coin (Kiểm tra số dư)
 @bot.slash_command(name="coin", description="Kiểm tra Hcoin và Kẹo")
 async def coin_command(inter: disnake.ApplicationCommandInteraction):
     users_data = load_data()
@@ -84,6 +83,7 @@ async def coin_command(inter: disnake.ApplicationCommandInteraction):
     
     await inter.response.send_message(f"💰 Bạn có **{hcoin:,} Hcoin** và **{candies} Kẹo**.")
 
+# Lệnh /doikẹo (Đổi kẹo lấy coin)
 @bot.slash_command(name="doikẹo", description="Đổi 50 Kẹo lấy 100 Hcoin")
 async def trade_command(inter: disnake.ApplicationCommandInteraction):
     users_data = load_data()
@@ -99,7 +99,7 @@ async def trade_command(inter: disnake.ApplicationCommandInteraction):
     
     await inter.response.send_message("🎉 Đổi Kẹo thành công! Bạn mất 50 Kẹo và nhận được 100 Hcoin.")
 
-# *** LỖI BẢO MẬT ĐÃ VÁ: COOLDOWN 24 GIỜ ***
+# Web route: Nhận kẹo miễn phí
 @app.route('/web_claim_candies', methods=['POST'])
 def web_claim_candies():
     global temp_message
@@ -115,14 +115,12 @@ def web_claim_candies():
         temp_message = f"LỖI: Không tìm thấy ID Discord {user_id}. Vui lòng đăng ký bằng lệnh /hello trên Discord."
         return redirect(url_for('home'))
 
-    # Thiết lập trị cố định và Cooldown 24h (86400 giây)
     CANDY_TO_ADD = 50
-    COOLDOWN_SECONDS = 86400
+    COOLDOWN_SECONDS = 86400 # 24 giờ
     current_time = int(time.time())
 
     last_claim = users_data[user_id].get('last_claim', 0)
     
-    # 1. Kiểm tra Cooldown
     remaining = last_claim + COOLDOWN_SECONDS - current_time
     
     if remaining > 0:
@@ -131,24 +129,21 @@ def web_claim_candies():
         temp_message = f"Đã nhận rồi! Vui lòng chờ {hours} giờ {minutes} phút nữa."
         return redirect(url_for('home'))
 
-    # 2. CỘNG KẸO
     users_data[user_id]['candies'] += CANDY_TO_ADD
-    users_data[user_id]['last_claim'] = current_time # Cập nhật thời gian claim
+    users_data[user_id]['last_claim'] = current_time
     save_data(users_data)
     
     temp_message = f"CHÚC MỪNG! ID {user_id} đã nhận thành công {CANDY_TO_ADD} Kẹo."
     return redirect(url_for('home'))
 
-
+# Web route: Thu thập Hcoin đã đào
 @app.route('/web_collect_mined_hcoin', methods=['POST'])
 def web_collect_mined_hcoin():
     global temp_message
     
-    # Xử lý yêu cầu thu thập Hcoin đã đào từ form trên web (CỘNG Hcoin và áp dụng Cooldown)
     user_id = request.form.get('discord_id_collect')
     amount_str = request.form.get('mined_amount')
 
-    # 1. Kiểm tra dữ liệu đầu vào
     if not user_id or not amount_str:
         temp_message = "LỖI: Vui lòng nhập ID Discord và số lượng Hcoin đã đào."
         return redirect(url_for('home'))
@@ -169,12 +164,10 @@ def web_collect_mined_hcoin():
         temp_message = f"LỖI: Không tìm thấy ID Discord {user_id}."
         return redirect(url_for('home'))
 
-    # Thiết lập trị cố định và Cooldown 24h (86400 giây)
-    FIXED_COLLECT_AMOUNT = 1000 # Bot luôn cộng 1000 Hcoin
-    COOLDOWN_SECONDS = 86400 # 24 giờ
+    FIXED_COLLECT_AMOUNT = 1000 # Số lượng Hcoin cố định được cộng
+    COOLDOWN_SECONDS = 86400
     current_time = int(time.time())
 
-    # 2. Kiểm tra Cooldown
     last_collect = users_data[user_id].get('last_collect', 0)
     remaining = last_collect + COOLDOWN_SECONDS - current_time
     
@@ -184,37 +177,30 @@ def web_collect_mined_hcoin():
         temp_message = f"Đã thu thập rồi! Vui lòng chờ {hours} giờ {minutes} phút nữa."
         return redirect(url_for('home'))
 
-    # 3. Thực hiện cộng Hcoin
     users_data[user_id]['hcoin'] += FIXED_COLLECT_AMOUNT
-    users_data[user_id]['last_collect'] = current_time # Cập nhật thời gian thu thập
+    users_data[user_id]['last_collect'] = current_time
     save_data(users_data)
 
     temp_message = f"🎉 THU THẬP THÀNH CÔNG! ID {user_id} đã cộng {FIXED_COLLECT_AMOUNT} Hcoin vào tài khoản."
     return redirect(url_for('home'))
 
 
-# 3. LOGIC FLASK (WEB DASHBOARD)
 @app.route('/', methods=['GET'])
 def home():
     global temp_message
     global bot
     
-    # ########################################################
-    # LOGIC PYTHON TRÊN WEB
-    # ########################################################
-    
-    # Xử lý thông báo
+    # HIỂN THỊ THÔNG BÁO TỪ REDIRECT
     alert_html = ""
     if temp_message:
         alert_html = f"""
         <div class="alert-message">{temp_message}</div>
         """
-        temp_message = None # Đảm bảo tin nhắn chỉ hiển thị một lần
+        temp_message = None
         
-    # LẤY DỮ LIỆU BẢNG XẾP HẠNG (THẬT) TỪ FILE USERS.JSON
+    # LẤY DỮ LIỆU BẢNG XẾP HẠNG THẬT TỪ FILE users.json
     users_data = load_data()
     
-    # Lọc ra những người chơi có Hcoin và sắp xếp
     sorted_users = sorted(
         [(user_id, data['hcoin']) for user_id, data in users_data.items() if data.get('hcoin', 0) > 0],
         key=lambda x: x[1],
@@ -224,18 +210,16 @@ def home():
     leaderboard_data = []
     rank = 1
     
-    # Lặp qua dữ liệu đã sắp xếp, giới hạn TOP 10
-    for user_id, hcoin in sorted_users[:10]:
+    for user_id, hcoin in sorted_users[:10]: # Chỉ lấy TOP 10
         user_name = "..." # Mặc định là dấu ba chấm
         
-        # *** LOGIC QUAN TRỌNG: Lấy Tên Người Dùng từ Discord ***
+        # LOGIC QUAN TRỌNG: Lấy Tên Người Dùng từ Discord
         try:
-            # Chúng ta dùng ID để tìm kiếm User Object qua bot
             user = bot.get_user(int(user_id)) 
             if user:
-                user_name = user.name # Lấy username Discord thật
+                user_name = user.name
             else:
-                user_name = f"ID: {user_id}" # Nếu không tìm thấy, hiển thị ID
+                user_name = f"ID: {user_id}"
         except ValueError:
             user_name = f"ID: {user_id}"
         
@@ -245,10 +229,8 @@ def home():
             'hcoin': hcoin
         })
         rank += 1
-    # KẾT THÚC LOGIC BẢNG XẾP HẠNG THẬT
     
-    
-    # DỮ LIỆU SỰ KIỆN (Không đổi)
+    # DỮ LIỆU SỰ KIỆN (CỐ ĐỊNH)
     event_data = [
         {"icon": "🎉", "title": "Chào mừng Tháng 11!", "detail": "Tham gia máy chủ Discord để nhận gói quà tân thủ trị giá 100 Hcoin."},
         {"icon": "🎃", "title": "Sự Kiện Lễ Tạ Ơn", "detail": "Thời gian giao dịch Kẹo diễn ra mỗi cuối tuần."},
@@ -258,23 +240,26 @@ def home():
         {"icon": "⚒️", "title": "Bảo Trì Hệ Thống", "detail": "Hệ thống sẽ bảo trì hàng tuần vào 2 giờ sáng ngày thứ Hai."},
     ]
     
-    # Kiểm tra an toàn trước khi truy cập bot.user
-if bot.is_ready() and bot.user:
-    bot_status_name = bot.user.name
-else:
-    bot_status_name = "Discord Bot 704" 
-
-status_text = "ONLINE"
-status_color = "#00FF00" 
-
-if not bot.is_ready():
-    status_text = "KHỞI ĐỘNG..." 
-    status_color = "#FFA500"
-    bot_status_name = "..."
     
- 
+    # LOGIC TRẠNG THÁI BOT (ĐÃ SỬA LỖI VÀ HỢP NHẤT)
+    if bot.is_ready() and bot.user:
+        bot_status_name = bot.user.name
+    else:
+        # Tên mặc định khi bot không sẵn sàng
+        bot_status_name = "Discord Bot 704" 
+        
+    status_text = "ONLINE"
+    status_color = "#00FF00" 
+
+    if not bot.is_ready():
+        status_text = "KHỞI ĐỘNG..." 
+        status_color = "#FFA500"
+        # *** BỔ SUNG DẤU BA CHẤM KHI BOT CHƯA SẴN SÀNG ***
+        bot_status_name = "..." 
+    # KẾT THÚC LOGIC TRẠNG THÁI BOT
     
-    # Lấy dữ liệu bảng xếp hạng HTML
+    
+    # LẤY DỮ LIỆU BẢNG XẾP HẠNG HTML
     html_table = f"""
     <table class="leaderboard-table">
         <tr>
@@ -294,7 +279,7 @@ if not bot.is_ready():
         """
     html_table += "</table>"
     
-    # Lấy dữ liệu Bảng Sự Kiện HTML
+    # LẤY DỮ LIỆU BẢNG SỰ KIỆN HTML
     html_event_list = ""
     for event in event_data:
         html_event_list += f"""
@@ -307,12 +292,8 @@ if not bot.is_ready():
         </div>
         """
 
-    # ########################################################
-    # PHẦN HTML
-    # ########################################################
-    
+    # PHẦN 1: HTML MỞ ĐẦU, CSS, VÀ JAVASCRIPT
     html_start = f"""
-    
     <!DOCTYPE html>
     <html lang="vi">
     <head>
@@ -320,12 +301,12 @@ if not bot.is_ready():
         <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@700&display=swap" rel="stylesheet">
         <style>
             :root {{
-                --main-color: #00FFEE; /* Cyan Neon */
-                --accent-color: #FF00FF; /* Magenta Neon */
+                --main-color: #00FFEE;
+                --accent-color: #FF00FF;
                 --dark-bg: #111111;
                 --card-bg: #222222;
                 --border-color: #333333;
-                --mine-color: #FFFF00; /* Vàng Neon */
+                --mine-color: #FFFF00;
             }}
             body {{
                 background-color: var(--dark-bg);
@@ -362,7 +343,6 @@ if not bot.is_ready():
                 padding: 5px 10px;
                 border-radius: 4px;
             }}
-            /* CẢNH BÁO */
             .alert-message {{
                 background-color: #FF0000;
                 color: white;
@@ -379,7 +359,6 @@ if not bot.is_ready():
                 90% {{ opacity: 1; }}
             }}
 
-            /* FORM & BUTTON */
             form {{
                 margin-top: 15px;
                 padding: 15px;
@@ -417,7 +396,6 @@ if not bot.is_ready():
                 display: none;
             }}
 
-            /* BẢNG XẾP HẠNG */
             .leaderboard-table {{
                 width: 100%;
                 border-collapse: collapse;
@@ -439,7 +417,6 @@ if not bot.is_ready():
                 background-color: #1a1a1a;
             }}
 
-            /* SỰ KIỆN */
             .event-item {{
                 display: flex;
                 margin-bottom: 15px;
@@ -478,7 +455,6 @@ if not bot.is_ready():
                 
                 document.getElementById('mining-status').innerText = "Đang đào... ⛏️";
 
-                // Thay cập nhật 1000ms (1 giây)
                 mining_interval = setInterval(() => {{
                     hcoin_balance += Hcoin_PER_SECOND;
                     update_display();
@@ -501,10 +477,9 @@ if not bot.is_ready():
                 update_display();
                 document.getElementById('mining-status').innerText = "Sẵn sàng Đào Hcoin! (Tốc độ: {Hcoin_PER_SECOND} Hcoin/s)";
                 
-                // Gán giá trị Hcoin đã đào vào form
                 document.getElementById('web_collect_mined_hcoin').onsubmit = function() {{
                     document.getElementById('mined_amount').value = hcoin_balance;
-                    hcoin_balance = 0; // Reset số dư sau khi thu thập
+                    hcoin_balance = 0;
                     stop_mining();
                 }};
             }};
@@ -573,7 +548,7 @@ if not bot.is_ready():
                     </button>
                 </form>
             </div>
-            
+
             <div class="dashboard-card leaderboard-card">
                 <h2>⫸ BẢNG XẾP HẠNG HCOIN | TOP USERS</h2>
                 {html_table}
@@ -586,3 +561,19 @@ if not bot.is_ready():
     """
     
     return html_start
+
+def run_bot():
+    bot.run(DISCORD_BOT_TOKEN)
+
+def run_web():
+    # Chạy Web Server
+    app.run(host='0.0.0.0', port=5000)
+
+if __name__ == '__main__':
+    # Chạy Bot và Web trên hai luồng khác nhau
+    web_thread = threading.Thread(target=run_web)
+    bot_thread = threading.Thread(target=run_bot)
+    
+    web_thread.start()
+    bot_thread.start()
+    
