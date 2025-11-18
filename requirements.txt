@@ -1,3 +1,4 @@
 Flask
 disnake
 gevent
+gevent-websocket
