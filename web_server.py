@@ -474,6 +474,8 @@ def clear_message():
     return jsonify({'status': 'ok'})
 
 # KHỐI CODE CUỐI CÙNG ĐÃ CHUẨN HÓA VÀ FIX LỖI CÚ PHÁP
+# Bắt đầu dán từ đây, thay thế khối code cũ
+
 def run_bot():
     bot.run(DISCORD_BOT_TOKEN)
 
@@ -488,3 +490,4 @@ if __name__ == '__main__':
     
     # Chạy Bot trên luồng chính
     run_bot()
+    
