@@ -244,13 +244,41 @@ def home():
     global bot 
 
     # Dữ liệu Bảng Xếp Hạng Hcoin (Giả lập)
-    leaderboard_data = [
-        {"rank": 1, "name": "Bóng Ma", "hcoin": 66666},
-        {"rank": 2, "name": "Phù Thủy", "hcoin": 31100},
-        {"rank": 3, "name": "Ma Cà Rồng", "hcoin": 13000},
-        {"rank": 4, "name": "Người Sói", "hcoin": 9000},
-        {"rank": 5, "name": "Bí Ngô", "hcoin": 4000},
-    ]
+    # LẤY DỮ LIỆU BẢNG XẾP HẠNG (THẬT) TỪ FILE USERS.JSON
+    users_data = load_data()
+    
+    # Lọc ra những người chơi có Hcoin và sắp xếp
+    sorted_users = sorted(
+        [(user_id, data['hcoin']) for user_id, data in users_data.items() if data.get('hcoin', 0) > 0],
+        key=lambda x: x[1],
+        reverse=True
+    )
+    
+    leaderboard_data = []
+    rank = 1
+    
+    # Lặp qua dữ liệu đã sắp xếp, giới hạn TOP 10 (hoặc bao nhiêu tùy bạn)
+    for user_id, hcoin in sorted_users[:10]:
+        user_name = "Đang tải..." # Mặc định
+        
+        # *** LOGIC QUAN TRỌNG: Lấy Tên Người Dùng từ Discord ***
+        try:
+            user = bot.get_user(int(user_id))
+            if user:
+                user_name = user.name # Lấy username Discord thật
+            else:
+                user_name = f"ID: {user_id}" # Nếu không tìm thấy, hiển thị ID
+        except ValueError:
+            user_name = f"ID: {user_id}"
+        
+        leaderboard_data.append({
+            'rank': rank,
+            'name': user_name,
+            'hcoin': hcoin
+        })
+        rank += 1
+    # KẾT THÚC LOGIC BẢNG XẾP HẠNG THẬT
+    
 
     # --- DỮ LIỆU SỰ KIỆN ---
     event_data = [
