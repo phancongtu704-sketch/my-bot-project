@@ -181,281 +181,281 @@ def home():
         leaderboard_data.append({'rank': i+1, 'name': username, 'hcoin': data['hcoin']})
 
 
-# LOGIC TRẠNG THÁI BOT ĐÃ SỬA LỖI ATTRIBUTE ERROR (DÁN ĐÈ KHỐI CŨ)
-if bot.is_ready() and bot.user:
-    bot_status_name = bot.user.name
-    status_text = "ONLINE"
-    status_color = "#00FF00"
-else:
-    # Đảm bảo tên bot mặc định là "..." khi chưa đăng nhập
-    bot_status_name = "..."
-    status_text = "KHỞI ĐỘNG..."
-    status_color = "#FFA500"
+    # LOGIC TRẠNG THÁI BOT ĐÃ SỬA LỖI ATTRIBUTE ERROR
+    if bot.is_ready() and bot.user:
+        bot_status_name = bot.user.name
+        status_text = "ONLINE"
+        status_color = "#00FF00"
+    else:
+        # Đảm bảo tên bot mặc định là "..." khi chưa đăng nhập
+        bot_status_name = "..."
+        status_text = "KHỞI ĐỘNG..."
+        status_color = "#FFA500"
 
-# LẤY DỮ LIỆU BẢNG XẾP HẠNG HTML
-html_table = f"""
-<table class="leaderboard-table">
-    <tr>
-        <th>Hạng</th>
-        <th>Tên Người Chơi</th>
-        <th>Hcoin (Coin)</th>
-    </tr>
-"""
+    # LẤY DỮ LIỆU BẢNG XẾP HẠNG HTML
+    html_table = f"""
+    <table class="leaderboard-table">
+        <tr>
+            <th>Hạng</th>
+            <th>Tên Người Chơi</th>
+            <th>Hcoin (Coin)</th>
+        </tr>
+    """
 
-for item in leaderboard_data:
-    html_table += f"""
-    <tr>
-        <td>{item['rank']}</td>
-        <td>{item['name']}</td>
-        <td>{item['hcoin']:,}</td>
-    </tr>
-"""
-html_table += "</table>"
+    for item in leaderboard_data:
+        html_table += f"""
+        <tr>
+            <td>{item['rank']}</td>
+            <td>{item['name']}</td>
+            <td>{item['hcoin']:,}</td>
+        </tr>
+    """
+    html_table += "</table>"
 
-# LẤY DỮ LIỆU BẢNG SỰ KIỆN HTML (ví dụ)
-html_event_list = ""
-event_data = [
-    {"icon": "🏆", "title": "Giải Đấu Coin Hàng Tuần", "detail": "Top 10 Hcoin nhận thêm 100 Kẹo."},
-    {"icon": "🛠️", "title": "Cập nhật Anti-Cheat", "detail": "Bot sẽ tự động kiểm tra gian lận."},
-    {"icon": "🛡️", "title": "Bảo Trì Hệ Thống", "detail": "Hệ thống sẽ bảo trì định kỳ vào 2 giờ sáng."},
-]
+    # LẤY DỮ LIỆU BẢNG SỰ KIỆN HTML (ví dụ)
+    html_event_list = ""
+    event_data = [
+        {"icon": "🏆", "title": "Giải Đấu Coin Hàng Tuần", "detail": "Top 10 Hcoin nhận thêm 100 Kẹo."},
+        {"icon": "🛠️", "title": "Cập nhật Anti-Cheat", "detail": "Bot sẽ tự động kiểm tra gian lận."},
+        {"icon": "🛡️", "title": "Bảo Trì Hệ Thống", "detail": "Hệ thống sẽ bảo trì định kỳ vào 2 giờ sáng."},
+    ]
 
-for event in event_data:
-    html_event_list += f"""
-    <div class="event-item">
-        <div class="event-icon">{event['icon']}</div>
-        <div class="event-content">
-            <strong>{event['title']}</strong>
-            <p>{event['detail']}</p>
-        </div>
-    </div>
-"""
-
-# PHẦN 1: HTML MỞ ĐẦU, CSS, VÀ JAVASCRIPT
-html_start = f"""
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <title>{bot_status_name} - Dashboard Hiện Đại</title>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@700&display=swap" rel="stylesheet">
-    <style>
-        :root {{
-            --main-color: #00FF00;
-            --mine-color: #EE44EE;
-            --dark-bg: #1e1e1e;
-            --card-bg: #2d2d2d;
-            --text-color: #ffffff;
-            --border-color: #3f3f3f;
-        }}
-        body {{
-            font-family: 'Space Mono', monospace;
-            background-color: var(--dark-bg);
-            color: var(--text-color);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-        }}
-        .container {{
-            width: 100%;
-            max-width: 1200px;
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 20px;
-        }}
-        .dashboard-main {{
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }}
-        .dashboard-card {{
-            background-color: var(--card-bg);
-            padding: 25px;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        }}
-        .dashboard-card h2 {{
-            color: var(--main-color);
-            margin-top: 0;
-            margin-bottom: 20px;
-            border-bottom: 2px solid var(--border-color);
-            padding-bottom: 10px;
-            font-size: 1.5em;
-        }}
-        .status-badge {{
-            display: inline-block;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-weight: bold;
-            text-transform: uppercase;
-            font-size: 0.9em;
-        }}
-        /* Màu trạng thái Bot */
-        .status-online {{
-            background-color: var(--main-color);
-            color: var(--dark-bg);
-        }}
-        .status-loading {{
-            background-color: var(--status-color);
-            color: var(--dark-bg);
-        }}
-        /* Bảng xếp hạng */
-        .leaderboard-table {{
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }}
-        .leaderboard-table th, .leaderboard-table td {{
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid var(--border-color);
-        }}
-        .leaderboard-table th {{
-            color: var(--mine-color);
-            text-transform: uppercase;
-            font-size: 0.8em;
-        }}
-        .leaderboard-table tr:nth-child(even) {{
-            background-color: rgba(0, 0, 0, 0.1);
-        }}
-        /* Form và Input */
-        form {{
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            margin-top: 15px;
-        }}
-        input[type="text"], input[type="number"] {{
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            background-color: var(--dark-bg);
-            color: var(--text-color);
-            font-size: 1em;
-            font-family: 'Space Mono', monospace;
-        }}
-        button[type="submit"] {{
-            padding: 12px 20px;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            font-size: 1em;
-            font-weight: bold;
-            transition: background-color 0.3s;
-            font-family: 'Space Mono', monospace;
-        }}
-        button[type="submit"]:hover {{
-            opacity: 0.9;
-        }}
-        /* Events Sidebar */
-        .events-sidebar {{
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }}
-        .event-item {{
-            display: flex;
-            gap: 15px;
-            padding: 15px;
-            border-radius: 8px;
-            background-color: #3a3a3a;
-            border-left: 5px solid var(--mine-color);
-        }}
-        .event-icon {{
-            font-size: 1.5em;
-        }}
-        .event-content strong {{
-            color: var(--main-color);
-        }}
-        .event-content p {{
-            margin: 5px 0 0;
-            font-size: 0.9em;
-            color: #ccc;
-        }}
-        /* Thông báo */
-        #notification-box {{
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background-color: #333;
-            color: white;
-            padding: 15px 25px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-            z-index: 1000;
-            display: none;
-            font-size: 1em;
-        }}
-    </style>
-</head>
-<body>
-    <div id="notification-box"></div>
-    <div class="container">
-        <div class="dashboard-main">
-            <div class="dashboard-card">
-                <h2 style="border-color: var(--main-color);">👾 TRẠNG THÁI BOT</h2>
-                <span class="status-badge" id="bot-status-display" style="background-color: {status_color}; color: var(--dark-bg);">
-                    {status_text}
-                </span>
-                <p style="margin-top: 15px; color: #aaa;">Bot Discord đang chạy và phục vụ bạn! Tên bot: <strong>{bot_status_name}</strong></p>
-                <hr style="border-color: var(--border-color); margin: 25px 0;"/>
-                
-                <h2>💵 VÍ (WALLET)</h2>
-                <p style="color: var(--mine-color); font-weight: bold;">Chức năng này cần dùng lệnh /wallet trong Discord để kiểm tra ví!</p>
-                <a href="https://discord.com/channels/@me" target="_blank" style="text-decoration: none;">
-                    <button style="background-color: var(--mine-color); color: var(--dark-bg); border: none;">
-                        <span style="font-size: 1.2em;">➡️</span> ĐI ĐẾN DISCORD ĐỂ RÚT/KIỂM TRA VÍ
-                    </button>
-                </a>
-                
-                <hr style="border-color: var(--border-color); margin: 25px 0;"/>
-                
-                <h2>⛏️ THU THẬP HCOIN ĐÃ ĐÀO (Cố định: 1000 Hcoin)</h2>
-                <p style="color: var(--mine-color); font-weight: bold;">Nhập ID và số lượng Hcoin muốn đào (Dùng lệnh /collect trong Discord để thu thập)</p>
-                
-                <form method="POST" action="{url_for('web_collect_mined_hcoin')}">
-                    <input type="text" name="discord_id_collect" placeholder="ID Discord (Tùy chọn)" required>
-                    <input type="number" name="mined_amount" id="mined_amount" value="1000" placeholder="Số lượng Hcoin muốn đào (1000)" required min="1000">
-                    <button type="submit" style="background-color: var(--mine-color); color: var(--dark-bg);">
-                        ⛏️ THU THẬP HCOIN NGAY
-                    </button>
-                </form>
-            </div>
-            
-            <div class="dashboard-card leaderboard-card">
-                <h2>🏆 BẢNG XẾP HẠNG HCOIN | TOP USERS</h2>
-                {html_table}
-                <p style="margin-top: 50px; color: #888;">Sử dụng lệnh /leaderboard trong Discord để xem chi tiết.</p>
+    for event in event_data:
+        html_event_list += f"""
+        <div class="event-item">
+            <div class="event-icon">{event['icon']}</div>
+            <div class="event-content">
+                <strong>{event['title']}</strong>
+                <p>{event['detail']}</p>
             </div>
         </div>
-        
-        <div class="events-sidebar dashboard-card">
-            <h2>📢 THÔNG BÁO VÀ SỰ KIỆN</h2>
-            {html_event_list}
-        </div>
-    </div>
-    <script>
-        const notificationBox = document.getElementById('notification-box');
-        const tempMessage = "{temp_message}";
+    """
 
-        if (tempMessage && tempMessage !== "None") {{
-            notificationBox.textContent = tempMessage;
-            notificationBox.style.display = 'block';
-            setTimeout(() => {{
-                notificationBox.style.display = 'none';
-            }}, 5000);
+    # PHẦN 1: HTML MỞ ĐẦU, CSS, VÀ JAVASCRIPT
+    html_start = f"""
+    <!DOCTYPE html>
+    <html lang="vi">
+    <head>
+        <title>{bot_status_name} - Dashboard Hiện Đại</title>
+        <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+        <style>
+            :root {{
+                --main-color: #00FF00;
+                --mine-color: #EE44EE;
+                --dark-bg: #1e1e1e;
+                --card-bg: #2d2d2d;
+                --text-color: #ffffff;
+                --border-color: #3f3f3f;
+            }}
+            body {{
+                font-family: 'Space Mono', monospace;
+                background-color: var(--dark-bg);
+                color: var(--text-color);
+                margin: 0;
+                padding: 20px;
+                display: flex;
+                justify-content: center;
+            }}
+            .container {{
+                width: 100%;
+                max-width: 1200px;
+                display: grid;
+                grid-template-columns: 2fr 1fr;
+                gap: 20px;
+            }}
+            .dashboard-main {{
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+            }}
+            .dashboard-card {{
+                background-color: var(--card-bg);
+                padding: 25px;
+                border-radius: 12px;
+                border: 1px solid var(--border-color);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            }}
+            .dashboard-card h2 {{
+                color: var(--main-color);
+                margin-top: 0;
+                margin-bottom: 20px;
+                border-bottom: 2px solid var(--border-color);
+                padding-bottom: 10px;
+                font-size: 1.5em;
+            }}
+            .status-badge {{
+                display: inline-block;
+                padding: 5px 15px;
+                border-radius: 20px;
+                font-weight: bold;
+                text-transform: uppercase;
+                font-size: 0.9em;
+            }}
+            /* Màu trạng thái Bot */
+            .status-online {{
+                background-color: var(--main-color);
+                color: var(--dark-bg);
+            }}
+            .status-loading {{
+                background-color: var(--status-color);
+                color: var(--dark-bg);
+            }}
+            /* Bảng xếp hạng */
+            .leaderboard-table {{
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 15px;
+            }}
+            .leaderboard-table th, .leaderboard-table td {{
+                padding: 12px 15px;
+                text-align: left;
+                border-bottom: 1px solid var(--border-color);
+            }}
+            .leaderboard-table th {{
+                color: var(--mine-color);
+                text-transform: uppercase;
+                font-size: 0.8em;
+            }}
+            .leaderboard-table tr:nth-child(even) {{
+                background-color: rgba(0, 0, 0, 0.1);
+            }}
+            /* Form và Input */
+            form {{
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+                margin-top: 15px;
+            }}
+            input[type="text"], input[type="number"] {{
+                padding: 12px;
+                border-radius: 8px;
+                border: 1px solid var(--border-color);
+                background-color: var(--dark-bg);
+                color: var(--text-color);
+                font-size: 1em;
+                font-family: 'Space Mono', monospace;
+            }}
+            button[type="submit"] {{
+                padding: 12px 20px;
+                border-radius: 8px;
+                border: none;
+                cursor: pointer;
+                font-size: 1em;
+                font-weight: bold;
+                transition: background-color 0.3s;
+                font-family: 'Space Mono', monospace;
+            }}
+            button[type="submit"]:hover {{
+                opacity: 0.9;
+            }}
+            /* Events Sidebar */
+            .events-sidebar {{
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+            }}
+            .event-item {{
+                display: flex;
+                gap: 15px;
+                padding: 15px;
+                border-radius: 8px;
+                background-color: #3a3a3a;
+                border-left: 5px solid var(--mine-color);
+            }}
+            .event-icon {{
+                font-size: 1.5em;
+            }}
+            .event-content strong {{
+                color: var(--main-color);
+            }}
+            .event-content p {{
+                margin: 5px 0 0;
+                font-size: 0.9em;
+                color: #ccc;
+            }}
+            /* Thông báo */
+            #notification-box {{
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background-color: #333;
+                color: white;
+                padding: 15px 25px;
+                border-radius: 8px;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+                z-index: 1000;
+                display: none;
+                font-size: 1em;
+            }}
+        </style>
+    </head>
+    <body>
+        <div id="notification-box"></div>
+        <div class="container">
+            <div class="dashboard-main">
+                <div class="dashboard-card">
+                    <h2 style="border-color: var(--main-color);">👾 TRẠNG THÁI BOT</h2>
+                    <span class="status-badge" id="bot-status-display" style="background-color: {status_color}; color: var(--dark-bg);">
+                        {status_text}
+                    </span>
+                    <p style="margin-top: 15px; color: #aaa;">Bot Discord đang chạy và phục vụ bạn! Tên bot: <strong>{bot_status_name}</strong></p>
+                    <hr style="border-color: var(--border-color); margin: 25px 0;"/>
+                    
+                    <h2>💵 VÍ (WALLET)</h2>
+                    <p style="color: var(--mine-color); font-weight: bold;">Chức năng này cần dùng lệnh /wallet trong Discord để kiểm tra ví!</p>
+                    <a href="https://discord.com/channels/@me" target="_blank" style="text-decoration: none;">
+                        <button style="background-color: var(--mine-color); color: var(--dark-bg); border: none;">
+                            <span style="font-size: 1.2em;">➡️</span> ĐI ĐẾN DISCORD ĐỂ RÚT/KIỂM TRA VÍ
+                        </button>
+                    </a>
+                    
+                    <hr style="border-color: var(--border-color); margin: 25px 0;"/>
+                    
+                    <h2>⛏️ THU THẬP HCOIN ĐÃ ĐÀO (Cố định: 1000 Hcoin)</h2>
+                    <p style="color: var(--mine-color); font-weight: bold;">Nhập ID và số lượng Hcoin muốn đào (Dùng lệnh /collect trong Discord để thu thập)</p>
+                    
+                    <form method="POST" action="{url_for('web_collect_mined_hcoin')}">
+                        <input type="text" name="discord_id_collect" placeholder="ID Discord (Tùy chọn)" required>
+                        <input type="number" name="mined_amount" id="mined_amount" value="1000" placeholder="Số lượng Hcoin muốn đào (1000)" required min="1000">
+                        <button type="submit" style="background-color: var(--mine-color); color: var(--dark-bg);">
+                            ⛏️ THU THẬP HCOIN NGAY
+                        </button>
+                    </form>
+                </div>
+                
+                <div class="dashboard-card leaderboard-card">
+                    <h2>🏆 BẢNG XẾP HẠNG HCOIN | TOP USERS</h2>
+                    {html_table}
+                    <p style="margin-top: 50px; color: #888;">Sử dụng lệnh /leaderboard trong Discord để xem chi tiết.</p>
+                </div>
+            </div>
             
-            // Xóa thông báo khỏi Python sau khi hiển thị
-            fetch('{url_for("clear_message")}', {{ method: 'POST' }});
-        }}
+            <div class="events-sidebar dashboard-card">
+                <h2>📢 THÔNG BÁO VÀ SỰ KIỆN</h2>
+                {html_event_list}
+            </div>
+        </div>
+        <script>
+            const notificationBox = document.getElementById('notification-box');
+            const tempMessage = "{temp_message}";
 
-        // Cập nhật trạng thái Bot (Nếu cần)
-        // Đây chỉ là giao diện tĩnh, trạng thái thực được lấy từ Python khi tải trang
-    </script>
-</body>
-</html>
-"""
+            if (tempMessage && tempMessage !== "None") {{
+                notificationBox.textContent = tempMessage;
+                notificationBox.style.display = 'block';
+                setTimeout(() => {{
+                    notificationBox.style.display = 'none';
+                }}, 5000);
+                
+                // Xóa thông báo khỏi Python sau khi hiển thị
+                fetch('{url_for("clear_message")}', {{ method: 'POST' }});
+            }}
+
+            // Cập nhật trạng thái Bot (Nếu cần)
+            // Đây chỉ là giao diện tĩnh, trạng thái thực được lấy từ Python khi tải trang
+        </script>
+    </body>
+    </html>
+    """
     temp_message = None # Reset thông báo sau khi render
     return html_start
 
@@ -472,4 +472,20 @@ def clear_message():
     global temp_message
     temp_message = None
     return jsonify({'status': 'ok'})
-# (KHỐI CODE CUỐI CÙNG VÀ CHÍNH XÁC)
+
+# KHỐI CODE CUỐI CÙNG ĐÃ CHUẨN HÓA VÀ FIX LỖI CÚ PHÁP
+def run_bot():
+    bot.run(DISCORD_BOT_TOKEN)
+
+def run_web():
+    # Sử dụng gevent để chạy Flask web server trên luồng phụ
+    http_server = WSGIServer(('', 5000), app)
+    http_server.serve_forever()
+
+if __name__ == '__main__':
+    # Chạy Web Server trên luồng phụ
+    spawn(run_web)
+    
+    # Chạy Bot trên luồng chính
+    run_bot()
+            
