@@ -262,16 +262,6 @@ def home():
         # Tên mặc định khi bot không sẵn sàng
         bot_status_name = "Discord Bot 704" 
         
-    status_text = "ONLINE"
-    status_color = "#00FF00" 
-
-    if not bot.is_ready():
-        status_text = "KHỞI ĐỘNG..." 
-        status_color = "#FFA500"
-        # BỔ SUNG DẤU BA CHẤM KHI BOT CHƯA SẴN SÀNG
-        bot_status_name = "..." 
-    # KẾT THÚC LOGIC TRẠNG THÁI BOT
-    
     
     # LẤY DỮ LIỆU BẢNG XẾP HẠNG HTML
     html_table = f"""
