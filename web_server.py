@@ -2,7 +2,6 @@ import os
 from flask import Flask
 import discord
 from threading import Thread
-from discord.ext import commands
 
 # === KHAI BÁO THÔNG SỐ ===
 DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN") 
@@ -10,10 +9,11 @@ PORT = os.environ.get("PORT", 5000)
 
 app = Flask(__name__)
 intents = discord.Intents.default()
-intents.message_content = True
+# Bat Intent nay la bat buoc
+intents.message_content = True 
+intents.presences = True # Thu them Intent nay
 
-# Sử dụng commands.Bot
-bot = commands.Bot(command_prefix='!', intents=intents) 
+bot = discord.Client(intents=intents) 
 
 def run_bot():
     if DISCORD_BOT_TOKEN:
@@ -23,18 +23,30 @@ def run_bot():
 
 # === LOGIC BOT DISCORD ===
 
+# 1. Su kien khi bot san sang
 @bot.event
 async def on_ready():
     print(f"Bot đã sẵn sàng: {bot.user}")
 
-@bot.command()
-async def ping(ctx):
-    await ctx.send('Pong!')
-    
+# 2. Lệnh !ping (Su dung on_message don gian)
+@bot.event
+async def on_message(message):
+    # Khong xu ly tin nhan cua chinh bot
+    if message.author == bot.user:
+        return
+        
+    # Lenh !ping
+    if message.content.startswith('!ping'):
+        await message.channel.send('Pong!')
+        
+    # Lenh !hello (Thu lenh phu)
+    if message.content.startswith('!hello'):
+        await message.channel.send(f'Xin chao, {message.author.mention}!')
+
 # === LOGIC WEB SERVER (FLASK) ===
 @app.route('/')
 def home():
-    return "<h1>Dashboard Bot HANAMI đang hoạt động!</h1><p>Bot đang chạy trên Render Free Tier.</p>"
+    return "<h1>Dashboard Bot HANAMI đang hoạt động! (Deployed)</h1>"
 
 # === CHẠY ĐỒNG THỜI BOT VÀ WEB SERVER ===
 if __name__ == '__main__':
