@@ -1,20 +1,18 @@
-import json
-import os
+import random
 import time
-import random 
+import os
+import json
 from flask import Flask, request, jsonify, redirect, url_for
-import disnake
 from disnake.ext import commands
+import disnake
 import threading
 
-# -------------------------------------------------------------------
 # 0. CẤU HÌNH DỮ LIỆU VÀ BIẾN TOÀN CỤC
-# -------------------------------------------------------------------
 USERS_FILE = 'users.json'
-temp_message = None 
+temp_message = None
 
 # Thiết lập tốc độ đào
-Hcoin_PER_SECOND = 100 
+Hcoin_PER_SECOND = 100
 
 def load_data():
     """Tải dữ liệu người dùng từ tệp JSON và đảm bảo các trường cần thiết."""
@@ -24,7 +22,7 @@ def load_data():
             with open(USERS_FILE, 'r') as f:
                 users_data = json.load(f)
         except json.JSONDecodeError:
-            print(f"Lỗi: Không thể giải mã JSON từ {USERS_FILE}. Khởi tạo lại dữ liệu.")
+            print(f"LỖI: Không thể giải mã JSON từ {USERS_FILE}. Khởi tạo lại dữ liệu.")
             users_data = {}
 
     # Đảm bảo mỗi user có trường hcoin, candies và last_claim
@@ -33,9 +31,11 @@ def load_data():
             data['hcoin'] = 10000 # Gán Hcoin mặc định
         if 'candies' not in data:
             data['candies'] = 0
+        if 'last_collect' not in data:
+            data['last_collect'] = 0
         if 'last_claim' not in data:
             data['last_claim'] = 0
-    
+            
     return users_data
 
 def save_data(data):
@@ -43,207 +43,174 @@ def save_data(data):
     with open(USERS_FILE, 'w') as f:
         json.dump(data, f, indent=4)
 
-# -------------------------------------------------------------------
 # 1. CẤU HÌNH DISCORD & FLASK
-# -------------------------------------------------------------------
-DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN") 
+DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN")
 intents = disnake.Intents.default()
-bot = commands.Bot(command_prefix='', intents=intents) 
+bot = commands.Bot(command_prefix='!', intents=intents)
 app = Flask(__name__)
 
-# -------------------------------------------------------------------
-# 2. LOGIC DISCORD BOT (LỆNH XẸT /)
-# -------------------------------------------------------------------
-
+# 2. LOGIC DISCORD BOT (LỆNH XÉT /)
 @bot.event
 async def on_ready():
-    print(f"🎉 Discord Bot Đã Đăng Nhập: {bot.user}")
+    print(f"✅ Discord Bot ĐÃ ĐĂNG NHẬP: {bot.user.name} (ID: {bot.user.id})")
 
-@bot.slash_command(name="hello", description="Kiểm tra trạng thái bot và chào mừng.")
+@bot.slash_command(name="hello", description="Kiểm tra trạng thái bot và đăng ký ID")
 async def hello_command(inter: disnake.ApplicationCommandInteraction):
-    await inter.response.send_message(
-        f"Chào {inter.author.mention}! Bot Discord đang chạy 24/7.",
-        ephemeral=True
-    )
+    await inter.response.send_message(f"👋 Chào bạn, tôi là {bot.user.name}. Bot Discord đang chạy 24/7. ID của bạn đã được đăng ký.")
+    # Logic đăng ký user (Duy trì code cũ)
+    users_data = load_data()
+    user_id_str = str(inter.author.id)
+    if user_id_str not in users_data:
+        users_data[user_id_str] = {
+            'hcoin': 10000,
+            'candies': 0,
+            'last_claim': 0,
+            'last_collect': 0
+        }
+        save_data(users_data)
+        await inter.followup.send("✅ ID Discord của bạn đã được đăng ký vào hệ thống.")
 
-@bot.slash_command(name="coin", description="Xem số Hcoin hiện tại của bạn.")
+@bot.slash_command(name="coin", description="Kiểm tra Hcoin và Kẹo")
 async def coin_command(inter: disnake.ApplicationCommandInteraction):
-    user_id = str(inter.author.id)
     users_data = load_data()
-    hcoin_balance = users_data.get(user_id, {}).get('hcoin', 0)
+    user_id_str = str(inter.author.id)
     
-    await inter.response.send_message(
-        f"💰 {inter.author.mention}, bạn hiện đang có **{hcoin_balance:,} Hcoin**.",
-        ephemeral=True
-    )
-
-@bot.slash_command(name="xemkeo", description="Xem số dư Kẹo Halloween hiện tại.")
-async def xemkeo_command(inter: disnake.ApplicationCommandInteraction):
-    users_data = load_data()
-    user_id = str(inter.author.id)
-    candies = users_data.get(user_id, {}).get('candies', 0)
-    await inter.response.send_message(
-        f"🎃 {inter.author.mention}, bạn hiện đang có **{candies} Kẹo Halloween**.", 
-        ephemeral=True
-    )
-
-@bot.slash_command(name="doikeo", description="Đổi 50 Kẹo Halloween lấy 2500 Hcoin.")
-async def doikeo_command(inter: disnake.ApplicationCommandInteraction):
-    user_id = str(inter.author.id)
-    candy_cost = 50 
-    hcoin_reward = 2500
-    
-    users_data = load_data()
-    current_candies = users_data.get(user_id, {}).get('candies', 0)
-    
-    if current_candies < candy_cost:
-        await inter.response.send_message(f"Không đủ kẹo! Bạn có {current_candies}, cần {candy_cost}.", ephemeral=True)
+    if user_id_str not in users_data:
+        await inter.response.send_message("❌ Vui lòng sử dụng lệnh /hello để đăng ký ID trước.")
         return
 
-    if user_id not in users_data:
-         # Điều này hiếm khi xảy ra vì load_data đã xử lý, nhưng vẫn cần thiết
-         users_data[user_id] = {'candies': 0, 'last_claim': 0, 'hcoin': 10000} 
-         
-    users_data[user_id]['candies'] -= candy_cost 
-    users_data[user_id]['hcoin'] += hcoin_reward # Cộng Hcoin
-    save_data(users_data) 
+    hcoin = users_data[user_id_str].get('hcoin', 0)
+    candies = users_data[user_id_str].get('candies', 0)
     
-    await inter.response.send_message(
-        f"🎉 {inter.author.mention} đã đổi thành công **{candy_cost} Kẹo Halloween** lấy **{hcoin_reward:,} Hcoin**! Số kẹo còn lại: {users_data[user_id]['candies']}",
-        ephemeral=True
-    )
+    await inter.response.send_message(f"💰 Bạn có **{hcoin:,} Hcoin** và **{candies} Kẹo**.")
 
-@bot.slash_command(name="withdraw", description="Rút Hcoin về tài khoản của bạn (Giả lập).")
-async def withdraw_command(inter: disnake.ApplicationCommandInteraction, amount: int):
-    user_id = str(inter.author.id)
-    
-    if amount <= 0:
-        await inter.response.send_message("Vui lòng nhập số lượng hợp lệ (> 0).", ephemeral=True)
-        return
-        
+@bot.slash_command(name="doikẹo", description="Đổi 50 Kẹo lấy 100 Hcoin")
+async def trade_command(inter: disnake.ApplicationCommandInteraction):
     users_data = load_data()
-    current_hcoin = users_data.get(user_id, {}).get('hcoin', 0)
+    user_id_str = str(inter.author.id)
     
-    if current_hcoin < amount:
-        await inter.response.send_message(
-            f"Không đủ Hcoin! Bạn có {current_hcoin:,}, cần {amount:,} để rút.", 
-            ephemeral=True
-        )
+    if user_id_str not in users_data or users_data[user_id_str].get('candies', 0) < 50:
+        await inter.response.send_message("❌ Bạn cần ít nhất 50 Kẹo để đổi lấy Hcoin.")
         return
-        
-    # *Logic Giảm Hcoin sau khi rút*
-    users_data[user_id]['hcoin'] -= amount 
-    save_data(users_data) 
+
+    users_data[user_id_str]['candies'] -= 50
+    users_data[user_id_str]['hcoin'] += 100
+    save_data(users_data)
     
-    # Giả lập gửi thông báo rút thành công
-    await inter.response.send_message(
-        f"✅ {inter.author.mention}, yêu cầu rút **{amount:,} Hcoin** đã được chấp nhận. Số Hcoin còn lại: {users_data[user_id]['hcoin']:,}.",
-        ephemeral=False
-    )
+    await inter.response.send_message("🎉 Đổi Kẹo thành công! Bạn mất 50 Kẹo và nhận được 100 Hcoin.")
 
-# -------------------------------------------------------------------
-# 3. LOGIC FLASK WEB SERVER (XỬ LÝ API VÀ TRANG CHỦ)
-# -------------------------------------------------------------------
-
-@app.route('/web_claim', methods=['POST'])
-def web_claim_candy():
-    """Xử lý yêu cầu nhận kẹo 24h từ web."""
+# *** LỖI BẢO MẬT ĐÃ VÁ: COOLDOWN 24 GIỜ ***
+@app.route('/web_claim_candies', methods=['POST'])
+def web_claim_candies():
     global temp_message
     
     user_id = request.form.get('discord_id')
-    candy_to_add = 50
-    cooldown = 24 * 60 * 60
+    users_data = load_data()
 
-    if not user_id or not user_id.isdigit():
-        temp_message = "🚨 Lỗi: Vui lòng nhập **ID Discord** hợp lệ (chỉ là số)."
+    if not user_id:
+        temp_message = "LỖI: Vui lòng nhập ID Discord của bạn."
         return redirect(url_for('home'))
 
-    users_data = load_data()
-    current_time = int(time.time())
-    
     if user_id not in users_data:
-        users_data[user_id] = {'candies': 0, 'last_claim': 0, 'hcoin': 10000} # Thêm Hcoin mặc định
+        temp_message = f"LỖI: Không tìm thấy ID Discord {user_id}. Vui lòng đăng ký bằng lệnh /hello trên Discord."
+        return redirect(url_for('home'))
+
+    # Thiết lập trị cố định và Cooldown 24h (86400 giây)
+    CANDY_TO_ADD = 50
+    COOLDOWN_SECONDS = 86400
+    current_time = int(time.time())
 
     last_claim = users_data[user_id].get('last_claim', 0)
     
-    if current_time - last_claim < cooldown:
-        remaining = cooldown - (current_time - last_claim)
-        hours = int(remaining // 3600)
-        minutes = int((remaining % 3600) // 60)
-        
-        temp_message = f"🛑 Đã nhận rồi! Vui lòng chờ {hours} giờ {minutes} phút nữa."
-        return redirect(url_for('home'))
+    # 1. Kiểm tra Cooldown
+    remaining = last_claim + COOLDOWN_SECONDS - current_time
     
-    users_data[user_id]['candies'] += candy_to_add
-    users_data[user_id]['last_claim'] = current_time
-    
-    save_data(users_data) 
-    
-    temp_message = f"🎉 CHÚC MỪNG! ID {user_id} đã nhận thành công {candy_to_add} Kẹo Halloween!"
-    return redirect(url_for('home'))
-import time # **QUAN TRỌNG:** Đảm bảo dòng này đã được thêm ở đầu file (ví dụ: dòng 8)
-
-# ... (các hàm khác)
-
-@app.route('/web_collect_mined', methods=['POST'])
-def web_collect_mined_hcoin():
-    """Xử lý yêu cầu thu thập Hcoin đã đào từ form trên web (CỘNG Hcoin và áp dụng Cooldown 24h)."""
-    global temp_message
-    
-    user_id = request.form.get('discord_id_collect')
-    
-    # *** 1. Thiết lập giá trị cố định và Cooldown ***
-    
-    FIXED_COLLECT_AMOUNT = 1000 # Bot luôn cộng 1000 Hcoin
-    COOLDOWN_SECONDS = 86400  # 24 giờ
-    current_time = time.time()
-    
-    if not user_id:
-        temp_message = "🚨 Lỗi: Vui lòng nhập ID Discord của bạn."
-        return redirect(url_for('home'))
-
-    users_data = load_data()
-    
-    if user_id not in users_data:
-        temp_message = f"🚨 Lỗi: Không tìm thấy ID Discord {user_id}. Vui lòng dùng /coin trong Discord trước."
-        return redirect(url_for('home'))
-
-    # Khởi tạo trường 'last_collect' nếu chưa có
-    if 'last_collect' not in users_data[user_id]:
-        users_data[user_id]['last_collect'] = 0
-
-    last_collect = users_data[user_id]['last_collect']
-    remaining = int(last_collect + COOLDOWN_SECONDS - current_time)
-
-    # *** 2. Kiểm tra Cooldown ***
     if remaining > 0:
         minutes = int((remaining % 3600) / 60)
         hours = int(remaining // 3600)
-        temp_message = f"🛑 Đã Thu thập rồi! Vui lòng chờ thêm {hours} giờ {minutes} phút nữa."
+        temp_message = f"Đã nhận rồi! Vui lòng chờ {hours} giờ {minutes} phút nữa."
         return redirect(url_for('home'))
 
-    # *** 3. Thực hiện cộng Hcoin ***
-
-    users_data[user_id]['hcoin'] += FIXED_COLLECT_AMOUNT 
-    users_data[user_id]['last_collect'] = current_time # Cập nhật thời gian thu thập cuối cùng
-    save_data(users_data) 
+    # 2. CỘNG KẸO
+    users_data[user_id]['candies'] += CANDY_TO_ADD
+    users_data[user_id]['last_claim'] = current_time # Cập nhật thời gian claim
+    save_data(users_data)
     
-    temp_message = f"✅ THU THẬP THÀNH CÔNG! ID {user_id} đã cộng {FIXED_COLLECT_AMOUNT:,} Hcoin vào số dư chính. Số dư mới: {users_data[user_id]['hcoin']:,}."
+    temp_message = f"CHÚC MỪNG! ID {user_id} đã nhận thành công {CANDY_TO_ADD} Kẹo."
     return redirect(url_for('home'))
-    
-    
-    # 3. Gửi thông báo thành công
-    temp_message = f"✅ THU THẬP THÀNH CÔNG! ID {user_id} đã cộng {amount:,} Hcoin vào số dư chính. Số dư mới: {users_data[user_id]['hcoin']:,}."
-    return redirect(url_for('home'))
-    
 
+
+@app.route('/web_collect_mined_hcoin', methods=['POST'])
+def web_collect_mined_hcoin():
+    global temp_message
+    
+    # Xử lý yêu cầu thu thập Hcoin đã đào từ form trên web (CỘNG Hcoin và áp dụng Cooldown)
+    user_id = request.form.get('discord_id_collect')
+    amount_str = request.form.get('mined_amount')
+
+    # 1. Kiểm tra dữ liệu đầu vào
+    if not user_id or not amount_str:
+        temp_message = "LỖI: Vui lòng nhập ID Discord và số lượng Hcoin đã đào."
+        return redirect(url_for('home'))
+
+    try:
+        amount = int(amount_str)
+    except ValueError:
+        temp_message = "LỖI: Số lượng Hcoin phải là số nguyên."
+        return redirect(url_for('home'))
+
+    if amount <= 0:
+        temp_message = "LỖI: Số lượng thu thập phải lớn hơn 0."
+        return redirect(url_for('home'))
+        
+    users_data = load_data()
+
+    if user_id not in users_data:
+        temp_message = f"LỖI: Không tìm thấy ID Discord {user_id}."
+        return redirect(url_for('home'))
+
+    # Thiết lập trị cố định và Cooldown 24h (86400 giây)
+    FIXED_COLLECT_AMOUNT = 1000 # Bot luôn cộng 1000 Hcoin
+    COOLDOWN_SECONDS = 86400 # 24 giờ
+    current_time = int(time.time())
+
+    # 2. Kiểm tra Cooldown
+    last_collect = users_data[user_id].get('last_collect', 0)
+    remaining = last_collect + COOLDOWN_SECONDS - current_time
+    
+    if remaining > 0:
+        minutes = int((remaining % 3600) / 60)
+        hours = int(remaining // 3600)
+        temp_message = f"Đã thu thập rồi! Vui lòng chờ {hours} giờ {minutes} phút nữa."
+        return redirect(url_for('home'))
+
+    # 3. Thực hiện cộng Hcoin
+    users_data[user_id]['hcoin'] += FIXED_COLLECT_AMOUNT
+    users_data[user_id]['last_collect'] = current_time # Cập nhật thời gian thu thập
+    save_data(users_data)
+
+    temp_message = f"🎉 THU THẬP THÀNH CÔNG! ID {user_id} đã cộng {FIXED_COLLECT_AMOUNT} Hcoin vào tài khoản."
+    return redirect(url_for('home'))
+
+
+# 3. LOGIC FLASK (WEB DASHBOARD)
 @app.route('/', methods=['GET'])
 def home():
-    """TRANG CHỦ - Giao diện SIÊU HIỆN ĐẠI với MINING GAME."""
     global temp_message
-    global bot 
-
-    # Dữ liệu Bảng Xếp Hạng Hcoin (Giả lập)
+    global bot
+    
+    # ########################################################
+    # LOGIC PYTHON TRÊN WEB
+    # ########################################################
+    
+    # Xử lý thông báo
+    alert_html = ""
+    if temp_message:
+        alert_html = f"""
+        <div class="alert-message">{temp_message}</div>
+        """
+        temp_message = None # Đảm bảo tin nhắn chỉ hiển thị một lần
+        
     # LẤY DỮ LIỆU BẢNG XẾP HẠNG (THẬT) TỪ FILE USERS.JSON
     users_data = load_data()
     
@@ -257,13 +224,14 @@ def home():
     leaderboard_data = []
     rank = 1
     
-    # Lặp qua dữ liệu đã sắp xếp, giới hạn TOP 10 (hoặc bao nhiêu tùy bạn)
+    # Lặp qua dữ liệu đã sắp xếp, giới hạn TOP 10
     for user_id, hcoin in sorted_users[:10]:
-        user_name = "Đang tải..." # Mặc định
+        user_name = "..." # Mặc định là dấu ba chấm
         
         # *** LOGIC QUAN TRỌNG: Lấy Tên Người Dùng từ Discord ***
         try:
-            user = bot.get_user(int(user_id))
+            # Chúng ta dùng ID để tìm kiếm User Object qua bot
+            user = bot.get_user(int(user_id)) 
             if user:
                 user_name = user.name # Lấy username Discord thật
             else:
@@ -279,38 +247,55 @@ def home():
         rank += 1
     # KẾT THÚC LOGIC BẢNG XẾP HẠNG THẬT
     
-
-    # --- DỮ LIỆU SỰ KIỆN ---
+    
+    # DỮ LIỆU SỰ KIỆN (Không đổi)
     event_data = [
-        {"icon": "🎉", "title": "Chào mừng Tháng 11!", "detail": "Tham gia máy chủ Discord để nhận gói quà tân thủ trị giá 5,000 Hcoin."},
-        {"icon": "🎁", "title": "Sự Kiện Lễ Tạ Ơn", "detail": "Nhận 200 Hcoin miễn phí mỗi ngày từ 24/11 đến 30/11."},
-        {"icon": "💰", "title": "Khuyến mãi Đổi Kẹo", "detail": "Tỉ lệ đổi Kẹo Halloween lấy Hcoin tăng 10% trong vòng 48 giờ tới."},
-        {"icon": "🏆", "title": "Giải Đấu Coin Hàng Tuần", "detail": "Top 10 Bảng xếp hạng sẽ nhận thưởng Hcoin gấp đôi vào Chủ Nhật."},
-        {"icon": "🛡️", "title": "Cập nhật Anti-Cheat", "detail": "Hệ thống chống gian lận mới đã được triển khai để bảo vệ sự công bằng."},
-        {"icon": "🛠️", "title": "Bảo Trì Hệ Thống", "detail": "Hệ thống sẽ bảo trì nâng cấp vào 2h sáng ngày 20/11 (30 phút)."},
+        {"icon": "🎉", "title": "Chào mừng Tháng 11!", "detail": "Tham gia máy chủ Discord để nhận gói quà tân thủ trị giá 100 Hcoin."},
+        {"icon": "🎃", "title": "Sự Kiện Lễ Tạ Ơn", "detail": "Thời gian giao dịch Kẹo diễn ra mỗi cuối tuần."},
+        {"icon": "🍬", "title": "Khuyến mãi Đổi Kẹo", "detail": "Nhận 200 Hcoin miễn phí khi đổi 50 Kẹo lần đầu."},
+        {"icon": "🏆", "title": "Giải Đấu Coin Hàng Tuần", "detail": "Tỉ lệ đột kích Boss Dungeon tăng 50%."},
+        {"icon": "🛠️", "title": "Cập nhật Anti-Cheat", "detail": "Hệ thống chống gian lận mới được triển khai để bảo vệ công bằng."},
+        {"icon": "⚒️", "title": "Bảo Trì Hệ Thống", "detail": "Hệ thống sẽ bảo trì hàng tuần vào 2 giờ sáng ngày thứ Hai."},
     ]
     
     # Kiểm tra an toàn trước khi truy cập bot.user
-    if bot.is_ready() and bot.user:
-        bot_status_name = bot.user.name
-    else:
-        bot_status_name = "Discord Bot 704" 
+if bot.is_ready() and bot.user:
+    bot_status_name = bot.user.name
+else:
+    # Tên mặc định khi bot không sẵn sàng
+    bot_status_name = "Discord Bot 704" 
 
-    # Trạng thái Bot
-    status_text = "ONLINE" if bot.is_ready() else "KHỞI ĐỘNG"
-    status_color = "#00FF00" if bot.is_ready() else "#FFA500"
+# Trạng thái Bot
+status_text = "ONLINE"
+status_color = "#00FF00" 
+
+if not bot.is_ready():
+    status_text = "KHỞI ĐỘNG..." 
+    status_color = "#FFA500"
+    # *** BỔ SUNG DẤU BA CHẤM KHI BOT CHƯA SẴN SÀNG ***
+    bot_status_name = "..." 
+    
     
     # Lấy dữ liệu bảng xếp hạng HTML
-    html_table = ""
+    html_table = f"""
+    <table class="leaderboard-table">
+        <tr>
+            <th>Hạng</th>
+            <th>Tên Người Chơi</th>
+            <th>Hcoin (Coin)</th>
+        </tr>
+    """
+    
     for item in leaderboard_data:
         html_table += f"""
         <tr>
-            <td data-label="Hạng">{item['rank']}</td>
-            <td data-label="Tên">{item['name']}</td>
-            <td data-label="Hcoin">{item['hcoin']:,}</td>
+            <td>{item['rank']}</td>
+            <td>{item['name']}</td>
+            <td>{item['hcoin']:,}</td>
         </tr>
         """
-        
+    html_table += "</table>"
+    
     # Lấy dữ liệu Bảng Sự Kiện HTML
     html_event_list = ""
     for event in event_data:
@@ -323,333 +308,283 @@ def home():
             </div>
         </div>
         """
-        
-    # HIỂN THỊ THÔNG BÁO TỪ REDIRECT
-    alert_html = ""
-    if temp_message:
-        alert_html = f'<div class="alert-message">{temp_message}</div>'
-        temp_message = None 
-        
-    # --- PHẦN 1: HTML MỞ ĐẦU, CSS, VÀ JAVASCRIPT ---
+
+    # ########################################################
+    # PHẦN HTML
+    # ########################################################
+    
     html_start = f"""
+    
     <!DOCTYPE html>
     <html lang="vi">
     <head>
         <title>🤖 {bot_status_name} - Dashboard Hiện Đại</title>
-        <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@700&display=swap" rel="stylesheet">
         <style>
             :root {{
-                --main-color: #00FFFF; /* Cyan Neon */
+                --main-color: #00FFEE; /* Cyan Neon */
                 --accent-color: #FF00FF; /* Magenta Neon */
                 --dark-bg: #111111;
-                --card-bg: #1e1e1e;
+                --card-bg: #222222;
                 --border-color: #333333;
                 --mine-color: #FFFF00; /* Vàng Neon */
             }}
-            body {{ 
-                background-color: var(--dark-bg); 
-                color: var(--main-color); 
-                font-family: 'Space Mono', monospace; 
-                text-align: center; 
+            body {{
+                background-color: var(--dark-bg);
+                color: var(--main-color);
+                font-family: 'Space Mono', monospace;
+                padding-top: 50px;
                 margin: 0;
-                padding: 40px 0;
             }}
-            .container {{ 
-                width: 95%; 
-                max-width: 800px; 
-                margin: 0 auto; 
+            .container {{
+                width: 90%;
+                max-width: 800px;
+                margin: 0 auto;
             }}
-            h1 {{ 
-                color: var(--accent-color); 
-                font-size: 2.5em; 
-                text-transform: uppercase;
-                text-shadow: 0 0 10px var(--accent-color);
-                margin-bottom: 30px;
-            }}
-            h2 {{ 
-                color: var(--main-color); 
-                font-size: 1.5em; 
+            h1 {{
+                color: var(--accent-color);
                 border-bottom: 2px solid var(--border-color);
                 padding-bottom: 10px;
-                margin-top: 40px;
             }}
-
-            /* === STATUS CARD & ALERTS === */
-            .status-card {{ 
-                padding: 15px; 
-                background-color: var(--card-bg); 
-                border: 2px solid var(--main-color);
-                box-shadow: 0 0 15px var(--main-color);
-                border-radius: 5px; 
-                margin-bottom: 40px; 
+            .dashboard-card {{
+                background-color: var(--card-bg);
+                border: 1px solid var(--border-color);
+                padding: 20px;
+                margin-bottom: 20px;
+                border-radius: 8px;
+            }}
+            .status-card {{
                 display: flex;
-                justify-content: center;
+                justify-content: space-between;
                 align-items: center;
-                gap: 20px;
-            }}
-            .status-indicator {{
-                width: 15px;
-                height: 15px;
-                border-radius: 50%;
-                background-color: {status_color};
-                box-shadow: 0 0 10px {status_color};
-                animation: pulse 1.5s infinite;
             }}
             .status-text {{
                 font-size: 1.2em;
                 font-weight: bold;
-                color: white;
+                padding: 5px 10px;
+                border-radius: 4px;
             }}
-            @keyframes pulse {{
-                0% {{ box-shadow: 0 0 10px {status_color}; }}
-                50% {{ box-shadow: 0 0 20px {status_color}; }}
-                100% {{ box-shadow: 0 0 10px {status_color}; }}
-            }}
+            /* CẢNH BÁO */
             .alert-message {{
+                background-color: #FF0000;
+                color: white;
                 padding: 15px;
-                background-color: #FFA500;
-                color: #111;
-                border-radius: 5px;
                 margin-bottom: 20px;
+                border-radius: 4px;
                 font-weight: bold;
-                border: 2px dashed #000;
+                text-align: center;
+                animation: fadeinout 5s linear forwards;
+            }}
+            @keyframes fadeinout {{
+                0%, 100% {{ opacity: 0; }}
+                10% {{ opacity: 1; }}
+                90% {{ opacity: 1; }}
             }}
 
-            /* === MINING CARD === */
-            .mining-card {{
-                background: var(--card-bg);
-                padding: 30px;
-                border-radius: 8px;
-                border: 2px solid var(--mine-color);
-                box-shadow: 0 0 15px var(--mine-color);
-                margin-bottom: 40px;
+            /* FORM & BUTTON */
+            form {{
+                margin-top: 15px;
+                padding: 15px;
+                border: 1px dashed var(--border-color);
+                border-radius: 4px;
             }}
-            #hcoin-count {{
-                font-size: 2.5em;
-                font-weight: bold;
-                color: var(--mine-color);
-                text-shadow: 0 0 10px var(--mine-color);
-                margin: 15px 0;
-                display: block;
+            input[type="text"], input[type="number"] {{
+                width: calc(100% - 20px);
+                padding: 10px;
+                margin-bottom: 10px;
+                background-color: var(--dark-bg);
+                border: 1px solid var(--border-color);
+                color: var(--main-color);
+                border-radius: 4px;
             }}
-            .mine-btn, .stop-btn {{
-                padding: 15px 25px;
-                margin: 10px;
-                border-radius: 5px;
+            button {{
+                background-color: var(--accent-color);
+                color: var(--dark-bg);
+                padding: 10px 20px;
                 border: none;
-                font-size: 1.1em;
+                border-radius: 4px;
+                cursor: pointer;
                 font-family: 'Space Mono', monospace;
                 font-weight: bold;
-                cursor: pointer;
+                width: 100%;
                 transition: opacity 0.3s;
+            }}
+            button:hover {{
+                opacity: 0.8;
             }}
             .mine-btn {{
                 background-color: var(--mine-color);
-                color: var(--dark-bg);
             }}
-            .stop-btn {{
-                background-color: #FF0000; /* Đỏ dừng */
-                color: white;
+            .hidden {{
+                display: none;
             }}
-            .mine-btn:hover, .stop-btn:hover {{ opacity: 0.8; }}
-            .hidden {{ display: none; }}
 
-
-            /* === EVENT LIST, CLAIM CARD, LEADERBOARD === */
-            .event-list {{
-                background: var(--card-bg);
-                padding: 20px;
-                border-radius: 8px;
-                border: 2px solid #FFA500;
-                box-shadow: 0 0 10px #FFA500;
-                margin-bottom: 40px;
+            /* BẢNG XẾP HẠNG */
+            .leaderboard-table {{
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 15px;
+            }}
+            .leaderboard-table th, .leaderboard-table td {{
+                padding: 10px;
                 text-align: left;
+                border-bottom: 1px solid var(--border-color);
             }}
+            .leaderboard-table th {{
+                background-color: var(--card-bg);
+                color: var(--accent-color);
+            }}
+            .leaderboard-table tr:hover {{
+                background-color: #2a2a2a;
+            }}
+            .leaderboard-table tr:nth-child(odd) {{
+                background-color: #1a1a1a;
+            }}
+
+            /* SỰ KIỆN */
             .event-item {{
                 display: flex;
-                gap: 15px;
-                padding: 15px 0;
-                border-bottom: 1px dashed var(--border-color);
-                align-items: center;
+                margin-bottom: 15px;
+                padding: 10px;
+                background-color: #2a2a2a;
+                border-radius: 4px;
             }}
-            .event-item:last-child {{ border-bottom: none; }}
-            .event-icon {{ font-size: 1.8em; }}
-            .event-content p {{ margin: 5px 0 0 0; color: #aaa; font-size: 0.9em; }}
-            .claim-card {{
-                background: var(--card-bg);
-                padding: 30px;
-                border-radius: 8px;
-                border: 2px solid var(--accent-color);
-                box-shadow: 0 0 10px var(--accent-color);
-                margin-bottom: 40px;
+            .event-icon {{
+                font-size: 1.5em;
+                margin-right: 15px;
             }}
-            .claim-card input[type=text] {{
-                background: #2a2a2a; color: var(--main-color); width: 70%; max-width: 300px; padding: 12px; margin: 10px; border-radius: 5px; border: 1px solid var(--border-color); font-size: 1em; font-family: 'Space Mono', monospace;
+            .event-content strong {{
+                color: var(--mine-color);
+                display: block;
             }}
-            .claim-card button {{
-                background-color: var(--accent-color); color: var(--dark-bg); cursor: pointer; font-weight: bold; transition: background-color 0.3s, box-shadow 0.3s; border: none; padding: 12px; margin: 10px; border-radius: 5px; font-size: 1em; font-family: 'Space Mono', monospace;
-            }}
-            .claim-card button:hover {{ background-color: #FF69B4; box-shadow: 0 0 15px var(--accent-color); }}
-            table {{ 
-                width: 100%; border-collapse: collapse; margin-top: 20px; background: #222; border: 1px solid var(--main-color); box-shadow: 0 0 8px var(--main-color); border-radius: 5px;
-            }}
-            th, td {{ padding: 15px 10px; text-align: left; border-bottom: 1px dashed var(--border-color); }}
-            th {{ background-color: #000; color: var(--accent-color); font-weight: 700; text-transform: uppercase; }}
-            tr:nth-child(even) {{ background-color: #1a1a1a; }}
-            tr:hover {{ background-color: #2a2a2a; }}
-            @media (max-width: 600px) {{
-                table, thead, tbody, th, td, tr {{ display: block; }}
-                thead tr {{ position: absolute; top: -9999px; left: -9999px; }}
-                tr {{ border: 1px solid var(--border-color); margin-bottom: 15px; }}
-                td {{ border: none; border-bottom: 1px solid #333; position: relative; padding-left: 50%; text-align: right; }}
-                td:before {{ content: attr(data-label); position: absolute; left: 10px; width: 45%; padding-right: 10px; white-space: nowrap; text-align: left; font-weight: bold; color: var(--accent-color); }}
+            .event-content p {{
+                margin: 0;
+                font-size: 0.9em;
+                color: #bbb;
             }}
         </style>
         <script>
-            let hcoin_balance = 0; // Số Hcoin đang đào (Chỉ hiển thị trên web)
-            let mining_interval;
-            // FIX: Truyền giá trị từ Python vào JavaScript
-            const Hcoin_PER_SECOND = {Hcoin_PER_SECOND}; 
+            let mining_interval = null;
+            let hcoin_balance = 0;
+            const Hcoin_PER_SECOND = {Hcoin_PER_SECOND};
 
-            const update_display = () => {{
-                document.getElementById('hcoin-count').innerText = hcoin_balance.toLocaleString() + " Hcoin";
-            }};
-            
-            const start_mining = () => {{
-                if (mining_interval) return; 
+            function update_display() {{
+                document.getElementById('hcoin-count').innerText = hcoin_balance.toLocaleString('en-US');
+            }}
 
-                // Đặt nút đào thành ẩn, hiện nút tắt
+            function start_mining() {{
+                if (mining_interval) return;
+
                 document.getElementById('start-btn').classList.add('hidden');
                 document.getElementById('stop-btn').classList.remove('hidden');
+                
+                document.getElementById('mining-status').innerText = "Đang đào... ⛏️";
 
-                // Chạy hàm cập nhật mỗi 1000ms (1 giây)
+                // Thay cập nhật 1000ms (1 giây)
                 mining_interval = setInterval(() => {{
                     hcoin_balance += Hcoin_PER_SECOND;
                     update_display();
-                }}, 1000); 
-                
-                document.getElementById('mining-status').innerText = "Đang Đào... (" + Hcoin_PER_SECOND.toLocaleString() + " Hcoin/s)";
-            }};
+                }}, 1000);
+            }}
 
-            const stop_mining = () => {{
-                if (mining_interval) {{
-                    clearInterval(mining_interval);
-                    mining_interval = null;
-                }}
-                
-                // Đặt nút tắt thành ẩn, hiện nút đào
+            function stop_mining() {{
+                if (mining_interval === null) return;
+
+                clearInterval(mining_interval);
+                mining_interval = null;
+
                 document.getElementById('start-btn').classList.remove('hidden');
                 document.getElementById('stop-btn').classList.add('hidden');
                 
-                document.getElementById('mining-status').innerText = "Đã Tắt. Đã đào được: " + hcoin_balance.toLocaleString() + " Hcoin (Giả lập).";
-            }};
-
-            // Khởi tạo trạng thái ban đầu
-            window.onload = () => {{
+                document.getElementById('mining-status').innerText = "Đã dừng. Đã đào được " + hcoin_balance.toLocaleString('en-US') + " Hcoin.";
+            }}
+            
+            window.onload = function() {{
                 update_display();
-                document.getElementById('mining-status').innerText = "Sẵn sàng Đào Hcoin (" + Hcoin_PER_SECOND.toLocaleString() + " Hcoin/s)";
+                document.getElementById('mining-status').innerText = "Sẵn sàng Đào Hcoin! (Tốc độ: {Hcoin_PER_SECOND} Hcoin/s)";
+                
+                // Gán giá trị Hcoin đã đào vào form
+                document.getElementById('web_collect_mined_hcoin').onsubmit = function() {{
+                    document.getElementById('mined_amount').value = hcoin_balance;
+                    hcoin_balance = 0; // Reset số dư sau khi thu thập
+                    stop_mining();
+                }};
             }};
         </script>
     </head>
     <body>
         <div class="container">
-            <h1>:: {bot_status_name} DASHBOARD ::</h1>
-
-            <div class="status-card">
-                <div class="status-indicator"></div>
-                <div class="status-text">
-                    [ TRẠNG THÁI BOT: {status_text} ]
-                </div>
-            </div>
             
             {alert_html}
+            
+            <h1>{bot_status_name} DASHBOARD :: Hcoin Mining</h1>
 
-            <div class="mining-card">
-                <h2>⫸ MÁY ĐÀO HCOIN TỐC ĐỘ CAO</h2>
-                <p id="mining-status" style="color: var(--mine-color); font-weight: bold;"></p>
-                <span id="hcoin-count">0 Hcoin</span>
+            <div class="dashboard-card status-card">
+                <h2>TRẠNG THÁI BOT</h2>
+                <div class="status-text" style="background-color: {status_color}; color: var(--dark-bg);">
+                    {status_text}
+                </div>
+            </div>
+
+            <div class="dashboard-card mining-card">
+                <h2>⫸ MÁY ĐÀO Hcoin TỐC ĐỘ CAO</h2>
+                <p style="color: var(--mine-color); font-weight: bold;">Hcoin Đã Đào: <span id="hcoin-count">0</span> Hcoin</p>
+                <p id="mining-status" style="font-style: italic;"></p>
                 
-                <button class="mine-btn" id="start-btn" onclick="start_mining()">💰 BẮT ĐẦU ĐÀO</button>
-                <button class="stop-btn hidden" id="stop-btn" onclick="stop_mining()">🛑 DỪNG ĐÀO</button>
-                <p style="color: #999; font-size: 0.8em; margin-top: 15px;">LƯU Ý: Số Hcoin này chỉ là giả lập trên web và sẽ bị mất khi tải lại trang.</p>
+                <button class="mine-btn" id="start-btn" onclick="start_mining()">🔥 BẮT ĐẦU ĐÀO</button>
+                <button class="mine-btn hidden" id="stop-btn" onclick="stop_mining()">🛑 DỪNG ĐÀO</button>
+                <p style="color: #999; font-size: 0.8em; margin-top: 15px;">* LƯU Ý: Số Hcoin này chưa được cộng vào tài khoản.</p>
             </div>
             
-            <div class="event-list">
-                <h2>⫸ SỰ KIỆN & CẬP NHẬT MỚI</h2>
-                                {html_event_list}
+            <div class="dashboard-card event-list">
+                <h2>SỰ KIỆN & CẬP NHẬT MỚI</h2>
+                {html_event_list}
             </div>
-
-                        <div class="claim-card">
+            
+            <div class="dashboard-card claim-card">
                 <h2>⫸ NHẬN KẸO MIỄN PHÍ | CLAIM REWARD</h2>
-                <p style="color: #bbb;">Nhập **ID Discord** để nhận **50 Kẹo** mỗi 24 giờ. Đừng quên /doikeo trong Discord!</p>
+                <p style="color: #bbb;">**Nhập **ID Discord** để nhận **50 Kẹo** mỗi 24 giờ.**</p>
                 
-                <form method="POST" action="/web_claim">
-                    <input type="text" id="discord_id" name="discord_id" placeholder="Nhập ID Discord (chỉ là số)">
-                    <button type="submit">CLAIM KẸO NGAY</button>
+                <form method="POST" action="{url_for('web_claim_candies')}">
+                    <input type="text" id="discord_id" name="discord_id" placeholder="ID Discord (Ví dụ: 704123456789...)" required>
+                    <button type="submit" style="border-color: var(--border-color); margin: 25px 0;">CLAIM KẸO NGAY</button>
                 </form>
+
+                <hr style="border-color: var(--border-color); margin: 25px 0;">
+                
+                <h2>⫸ VÍ (WALLET)</h2>
+                <p style="color: var(--mine-color); font-weight: bold;">Chức năng này cần được sử dụng qua Bot Discord.</p>
+                
+                <a href="https://discord.com/channels/@me" target="_blank" style="text-decoration: none;">
+                    <button style="background-color: var(--mine-color); color: var(--dark-bg); border: none;">
+                        💸 ĐI ĐẾN DISCORD ĐỂ RÚT/KIỂM TRA VÍ
+                    </button>
+                </a>
+
+
                 <hr style="border-color: var(--border-color); margin: 25px 0;">
                 
                 <h2>⫸ THU THẬP HCOIN ĐÃ ĐÀO (Cố định: 1000 Hcoin)</h2>
-                <p style="color: var(--mine-color); font-weight: bold;">Bot sẽ cộng 1000 Hcoin cho mỗi lần thu thập. Cần 24h cooldown.</p>
+                <p style="color: var(--mine-color); font-weight: bold;">*Nhập ID và số lượng Hcoin đã đào để cộng vào tài khoản (Cooldown 24h).</p>
                 
-                <form method="POST" action="/web_collect_mined">
-                    <input type="text" name="discord_id_collect" placeholder="ID Discord của bạn" required>
-                    <button type="submit" style="background-color: var(--mine-color); color: var(--dark-bg); border: none;">
-                        💰 THU THẬP 1000 HCOIN NGAY
+                <form method="POST" action="{url_for('web_collect_mined_hcoin')}" id="web_collect_mined_hcoin">
+                    <input type="text" name="discord_id_collect" placeholder="ID Discord (Ví dụ: 704123456789...)" required>
+                    <input type="number" name="mined_amount" id="mined_amount" value="0" hidden>
+                    <button type="submit" style="background-color: var(--mine-color); color: var(--dark-bg);">
+                        💰 THU THẬP HCOIN NGAY
                     </button>
-                    
                 </form>
             </div>
             
-            <h2>⫸ BẢNG XẾP HẠNG HCOIN | TOP USERS</h2>
-            
-            <table>
-                <thead>
-                    <tr>
-                        <th>Hạng</th>
-                        <th>Tên Người Chơi</th>
-                        <th>Hcoin (Coin)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {html_table}
-                </tbody>
-            </table>
+            <div class="dashboard-card leaderboard-card">
+                <h2>⫸ BẢNG XẾP HẠNG HCOIN | TOP USERS</h2>
+                {html_table}
+                <p style="margin-top: 50px; color: #888;">Sử dụng lệnh **/hello**, **/coin**, **/doikẹo** trong Discord và chọn **{bot.user.name}**.</p>
+            </div>
 
-            <p style="margin-top: 50px; color: #888;">
-                Sử dụng lệnh **/** trong Discord và chọn **hello**, **coin**, **xemkeo** hoặc **doikeo** (và **withdraw**).
-            </p>
         </div>
-    """
-    
-    # --- PHẦN 2: HTML KẾT THÚC (Được nối thêm để đảm bảo không bị cắt) ---
-    html_end = """
     </body>
     </html>
     """
     
-    return html_start + html_end
-    
-# -------------------------------------------------------------------
-# 4. CHẠY CẢ HAI CÙNG LÚC
-# -------------------------------------------------------------------
-
-def run_flask():
-    """Chạy Flask Web Server và Discord Bot."""
-    if not DISCORD_BOT_TOKEN:
-        print("🚨 Lỗi: KHÔNG tìm thấy DISCORD_BOT_TOKEN.")
-        return
-
-    # Khởi tạo và chạy Bot Discord trong một luồng (thread) riêng
-    discord_thread = threading.Thread(target=lambda: bot.loop.run_until_complete(bot.start(DISCORD_BOT_TOKEN)))
-    discord_thread.start()
-    
-    # Bật Flask Web Server trong luồng chính
-    print("Web Server đã khởi động trên 0.0.0.0:5000")
-    app.run(host='0.0.0.0', port=os.environ.get("PORT", 5000), debug=False)
-
-
-if __name__ == '__main__':
-    run_flask()
-            
-               
+    return html_start
