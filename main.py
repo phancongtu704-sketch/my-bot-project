@@ -6,22 +6,22 @@ from google import genai
 from google.genai.errors import APIError
 from flask import Flask
 from threading import Thread
-import httpx # Thư viện để kiểm tra HTTP Status
+import httpx 
 
 # --- CẤU HÌNH API VÀ BOT ---
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 MODEL_NAME = "gemini-2.5-flash"
-CHECK_INTERVAL_SECONDS = 30 # Kiểm tra mỗi 30 giây
+CHECK_INTERVAL_SECONDS = 30 
 
-# ID kênh của bạn đã được đặt vào đây
+# ID kênh của bạn
 REPORT_CHANNEL_ID = 1438028620407771198 
 
 # Danh sách URL để theo dõi
 MONITORED_URLS = {
     "Google": {"url": "https://www.google.com", "status": "UP"},
     "Render.com": {"url": "https://render.com", "status": "UP"},
-    # BẠN CÓ THỂ THÊM DỊCH VỤ KHÁC VÀO ĐÂY
+    # THÊM DỊCH VỤ CỦA BẠN VÀO ĐÂY
 }
 
 # --- KHỞI TẠO CLIENTS ---
@@ -60,16 +60,16 @@ async def check_uptime():
     if not bot.is_ready():
         return
 
-    # Lấy kênh báo cáo bằng ID đã cung cấp
     report_channel = bot.get_channel(REPORT_CHANNEL_ID)
     if not report_channel:
         print(f"Lỗi: Không tìm thấy kênh báo cáo với ID: {REPORT_CHANNEL_ID}")
         return
 
-    async with httpx.AsyncClient(verify=False) as client: # Tắt xác minh SSL (verify=False) để tránh lỗi trên một số hệ thống
+    # Tắt xác minh SSL (verify=False) để tránh lỗi SSL/HTTPS trên một số host
+    async with httpx.AsyncClient(verify=False) as client: 
         for name, data in MONITORED_URLS.items():
             try:
-                # Kiểm tra HTTP HEAD
+                # Kiểm tra HTTP HEAD để tiết kiệm tài nguyên
                 response = await client.head(data['url'], timeout=5) 
                 
                 new_status = "UP" if 200 <= response.status_code < 400 else "DOWN"
@@ -86,7 +86,6 @@ async def check_uptime():
                         )
 
             except httpx.RequestError as e:
-                # Báo cáo khi không kết nối được
                 if data['status'] != "DOWN":
                     data['status'] = "DOWN"
                     await report_channel.send(
@@ -110,7 +109,6 @@ async def update_command(interaction: discord.Interaction, url: str):
             contents=[prompt]
         )
         
-        # Đảm bảo phản hồi không vượt quá giới hạn 2000 ký tự của Discord
         response_text = ai_response.text
         if len(response_text) > 2000:
             response_text = response_text[:1997] + "..."
@@ -129,15 +127,12 @@ async def update_command(interaction: discord.Interaction, url: str):
 async def on_ready():
     print(f'Bot đã đăng nhập với tên: {bot.user} - ID: {bot.user.id}')
     
-    # Đồng bộ hóa Slash Commands
     await tree.sync() 
     print("Đã đồng bộ hóa Slash Commands.")
     
-    # Khởi động tác vụ kiểm tra Uptime
     check_uptime.start() 
     print(f"Đã khởi động kiểm tra Uptime mỗi {CHECK_INTERVAL_SECONDS} giây.")
     
-    # Khởi động Flask Keep-Alive
     keep_alive()
 
 if __file__ == "main.py":
@@ -145,4 +140,4 @@ if __file__ == "main.py":
         bot.run(DISCORD_TOKEN)
     except Exception as e:
         print(f"Lỗi khi chạy bot: {e}")
-    
+            
