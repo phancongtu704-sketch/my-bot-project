@@ -6,22 +6,21 @@ from google import genai
 from google.genai.errors import APIError
 from flask import Flask
 from threading import Thread
-import httpx 
+import httpx # Dùng cho việc kiểm tra Uptime
 
 # --- CẤU HÌNH API VÀ BOT ---
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-MODEL_NAME = "gemini-2.5-flash"
+MODEL_NAME = "gemini-2.5-flash" # Dùng Flash để tiết kiệm Quota
 CHECK_INTERVAL_SECONDS = 30 
 
-# ID kênh của bạn
+# ID kênh của bạn để báo cáo Uptime
 REPORT_CHANNEL_ID = 1438028620407771198 
 
 # Danh sách URL để theo dõi
 MONITORED_URLS = {
     "Google": {"url": "https://www.google.com", "status": "UP"},
     "Render.com": {"url": "https://render.com", "status": "UP"},
-    # THÊM DỊCH VỤ CỦA BẠN VÀO ĐÂY
 }
 
 # --- KHỞI TẠO CLIENTS ---
@@ -140,4 +139,4 @@ if __file__ == "main.py":
         bot.run(DISCORD_TOKEN)
     except Exception as e:
         print(f"Lỗi khi chạy bot: {e}")
-            
+        
