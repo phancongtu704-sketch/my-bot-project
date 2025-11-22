@@ -44,7 +44,7 @@ def gemini_api():
         return jsonify({"error": "Thiếu trường 'prompt' trong yêu cầu."}), 400
 
     try:
-        # Gọi API Gemini (đã tối ưu hóa để tránh lỗi 400)
+        # Gọi API Gemini
         response = gemini_client.models.generate_content(
             model=MODEL_NAME,
             contents=[prompt]
@@ -58,15 +58,14 @@ def gemini_api():
         }), 200
 
     except APIError as e:
-        # Lỗi 400 Bad Request (API bị giới hạn Quota)
-        error_message = "Lỗi Gemini API: Yêu cầu bị từ chối. Vui lòng kiểm tra Key API và Quota."
+        # Lỗi 400 Bad Request do Quota
+        error_message = "Lỗi Gemini API: Yêu cầu bị từ chối do Giới hạn Tần suất/Quota. Vui lòng kiểm tra cài đặt tài khoản."
         return jsonify({"error": "Lỗi Gemini API", "details": str(e), "message": error_message}), 400
         
     except Exception as e:
         return jsonify({"error": "Lỗi máy chủ không xác định", "details": str(e)}), 500
 
 if __name__ == '__main__':
-    # Render sẽ sử dụng gunicorn, nhưng lệnh này dùng để kiểm tra cục bộ
-    # app.run(host='0.0.0.0', port=os.environ.get('PORT', 8080))
+    # Render sẽ sử dụng gunicorn
     print("Sử dụng Gunicorn để chạy ứng dụng trong môi trường Render.")
-    
+        
