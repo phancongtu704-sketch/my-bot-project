@@ -37,6 +37,7 @@ if not DISCORD_TOKEN or not GEMINI_API_KEY:
 
 try:
     gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+    # Sử dụng model ổn định nhất
     MODEL_NAME = "gemini-2.5-flash" 
     print(f'Đã khởi tạo Gemini Client với model: {MODEL_NAME}')
 except Exception as e:
@@ -44,13 +45,16 @@ except Exception as e:
     exit()
 
 intents = discord.Intents.default()
+# MESSAGE CONTENT INTENT BẮT BUỘC PHẢI BẬT TRÊN DISCORD DEV PORTAL
 intents.message_content = True 
 
+# Không dùng command_prefix vì bot phản hồi mọi tin nhắn
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 @bot.event
 async def on_ready():
     print(f'Bot đã đăng nhập với tên: {bot.user}')
+    # Khởi động Flask Keep-Alive
     keep_alive()
 
 @bot.event
@@ -67,16 +71,18 @@ async def on_message(message):
         
     start_time = time.time()
     
+    # Hiển thị trạng thái đang gõ (Typing) ngay lập tức
     async with message.channel.typing():
         try:
             contents = []
             
-            # Cấu hình System Instruction để trả lời toàn diện
+            # System Instruction để trả lời toàn diện
             system_instruction = "Bạn là một Bot Discord thân thiện, chuyên nghiệp, và là chuyên gia về công nghệ, lập trình. Luôn trả lời bằng TIẾNG VIỆT, sử dụng Markdown và chia đoạn rõ ràng. Hãy cung cấp câu trả lời đầy đủ và chi tiết nhất có thể cho mọi câu hỏi."
             config = types.GenerateContentConfig(system_instruction=system_instruction)
 
             image_parts = []
             
+            # Xử lý ảnh đính kèm
             if has_attachments:
                 for attachment in message.attachments:
                     if 'image' in attachment.content_type:
@@ -99,6 +105,7 @@ async def on_message(message):
                  contents.insert(0, "Mô tả và phân tích hình ảnh này cho tôi.")
             
             if contents:
+                # Gửi yêu cầu tới Gemini (KHÔNG CÓ LỊCH SỬ CHAT)
                 response = gemini_client.models.generate_content(
                     model=MODEL_NAME,
                     contents=contents,
@@ -115,6 +122,7 @@ async def on_message(message):
                 await message.channel.send(response.text)
                 
         except APIError as e:
+            # Lỗi 400 Bad Request dai dẳng chỉ ra Key API bị lỗi
             error_message = f"❌ LỖI API: Yêu cầu bị từ chối. Vui lòng kiểm tra lại Key API **MỚI NHẤT** và Quota. Chi tiết lỗi: {e}"
             await message.channel.send(error_message)
         except Exception as e:
@@ -128,3 +136,4 @@ if __name__ == "__main__":
         print("Lỗi: Token Discord không hợp lệ.")
     except Exception as e:
         print(f"Lỗi không xác định khi chạy bot: {e}")
+    
