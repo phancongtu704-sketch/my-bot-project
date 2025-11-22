@@ -1,3 +1,6 @@
-discord.py>=2.3.2
-flask
+discord.py
+google-genai
+Pillow
+requests
+Flask
 gunicorn
