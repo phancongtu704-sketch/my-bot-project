@@ -38,8 +38,8 @@ if not DISCORD_TOKEN or not GEMINI_API_KEY:
 try:
     gemini_client = genai.Client(api_key=GEMINI_API_KEY)
     
-    # CHUYỂN SANG MODEL ỔN ĐỊNH HƠN (gemini-2.5-pro) để fix lỗi 400 dai dẳng
-    MODEL_NAME = "gemini-2.5-pro" 
+    # Model ổn định và dễ truy cập nhất
+    MODEL_NAME = "gemini-2.5-flash" 
     print(f'Đã khởi tạo Gemini Client với model: {MODEL_NAME}')
 except Exception as e:
     print(f"Lỗi khởi tạo Gemini Client: {e}")
@@ -77,7 +77,7 @@ async def on_message(message):
         try:
             contents = []
             
-            # Đã BỎ System Instruction để tránh lỗi kích thước request (400)
+            # System Instruction đã bị xóa để tránh lỗi 400 Bad Request
             
             image_parts = []
             
@@ -104,7 +104,7 @@ async def on_message(message):
                  contents.insert(0, "Mô tả và phân tích hình ảnh này cho tôi.")
             
             if contents:
-                # Gửi yêu cầu tới Gemini (KHÔNG CÓ LỊCH SỬ CHAT VÀ KHÔNG CÓ CONFIG/SYSTEM INSTRUCTION)
+                # Gửi yêu cầu tới Gemini (Đã loại bỏ CONFIG/SYSTEM INSTRUCTION)
                 response = gemini_client.models.generate_content(
                     model=MODEL_NAME,
                     contents=contents
