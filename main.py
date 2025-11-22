@@ -37,8 +37,9 @@ if not DISCORD_TOKEN or not GEMINI_API_KEY:
 
 try:
     gemini_client = genai.Client(api_key=GEMINI_API_KEY)
-    # Sử dụng model ổn định nhất
-    MODEL_NAME = "gemini-2.5-flash" 
+    
+    # CHUYỂN SANG MODEL ỔN ĐỊNH HƠN (gemini-2.5-pro) để fix lỗi 400 dai dẳng
+    MODEL_NAME = "gemini-2.5-pro" 
     print(f'Đã khởi tạo Gemini Client với model: {MODEL_NAME}')
 except Exception as e:
     print(f"Lỗi khởi tạo Gemini Client: {e}")
@@ -76,10 +77,8 @@ async def on_message(message):
         try:
             contents = []
             
-            # System Instruction để trả lời toàn diện
-            system_instruction = "Bạn là một Bot Discord thân thiện, chuyên nghiệp, và là chuyên gia về công nghệ, lập trình. Luôn trả lời bằng TIẾNG VIỆT, sử dụng Markdown và chia đoạn rõ ràng. Hãy cung cấp câu trả lời đầy đủ và chi tiết nhất có thể cho mọi câu hỏi."
-            config = types.GenerateContentConfig(system_instruction=system_instruction)
-
+            # Đã BỎ System Instruction để tránh lỗi kích thước request (400)
+            
             image_parts = []
             
             # Xử lý ảnh đính kèm
@@ -105,11 +104,10 @@ async def on_message(message):
                  contents.insert(0, "Mô tả và phân tích hình ảnh này cho tôi.")
             
             if contents:
-                # Gửi yêu cầu tới Gemini (KHÔNG CÓ LỊCH SỬ CHAT)
+                # Gửi yêu cầu tới Gemini (KHÔNG CÓ LỊCH SỬ CHAT VÀ KHÔNG CÓ CONFIG/SYSTEM INSTRUCTION)
                 response = gemini_client.models.generate_content(
                     model=MODEL_NAME,
-                    contents=contents,
-                    config=config
+                    contents=contents
                 )
                 
                 # Logic phản hồi nhanh 1 giây
@@ -136,4 +134,3 @@ if __name__ == "__main__":
         print("Lỗi: Token Discord không hợp lệ.")
     except Exception as e:
         print(f"Lỗi không xác định khi chạy bot: {e}")
-    
