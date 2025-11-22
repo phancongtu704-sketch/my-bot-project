@@ -1,5 +1,6 @@
 Flask
 gunicorn
+discord.py
 google-genai
 requests
 Pillow
