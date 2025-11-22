@@ -12,21 +12,23 @@ from google.genai.errors import APIError
 import time 
 import asyncio 
 
-# --- FLASK KEEP-ALIVE CHO RENDER ---
+# --- FLASK KEEP-ALIVE CHO RENDER (Cấu trúc web hiện đại) ---
 app = Flask('')
 
 @app.route('/')
 def home():
-    return "Bot Discord Gemini đang chạy!"
+    # Trang chủ Render sẽ luôn trả về thông báo này để xác nhận dịch vụ đang chạy
+    return "Bot Discord Gemini đang chạy và được giữ Online!"
 
 def run_flask():
     # Sử dụng cổng Render cung cấp (hoặc mặc định là 8080)
     app.run(host='0.0.0.0', port=os.environ.get('PORT', 8080)) 
 
 def keep_alive():
+    # Chạy Flask server trên một luồng riêng biệt (thread)
     t = Thread(target=run_flask)
     t.start()
-# -----------------------------------
+# -----------------------------------------------------------
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -49,13 +51,13 @@ intents = discord.Intents.default()
 # MESSAGE CONTENT INTENT BẮT BUỘC PHẢI BẬT TRÊN DISCORD DEV PORTAL
 intents.message_content = True 
 
-# Không dùng command_prefix vì bot phản hồi mọi tin nhắn
+# Khởi tạo Bot
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 @bot.event
 async def on_ready():
     print(f'Bot đã đăng nhập với tên: {bot.user}')
-    # Khởi động Flask Keep-Alive
+    # Khởi động Flask Keep-Alive để giữ bot Online trên Render
     keep_alive()
 
 @bot.event
@@ -72,12 +74,10 @@ async def on_message(message):
         
     start_time = time.time()
     
-    # Hiển thị trạng thái đang gõ (Typing) ngay lập tức
+    # Hiển thị trạng thái đang gõ (Typing)
     async with message.channel.typing():
         try:
             contents = []
-            
-            # System Instruction đã bị xóa để tránh lỗi 400 Bad Request
             
             image_parts = []
             
@@ -104,7 +104,7 @@ async def on_message(message):
                  contents.insert(0, "Mô tả và phân tích hình ảnh này cho tôi.")
             
             if contents:
-                # Gửi yêu cầu tới Gemini (Đã loại bỏ CONFIG/SYSTEM INSTRUCTION)
+                # Gửi yêu cầu tới Gemini (Đã loại bỏ CONFIG/SYSTEM INSTRUCTION để tránh lỗi 400)
                 response = gemini_client.models.generate_content(
                     model=MODEL_NAME,
                     contents=contents
@@ -134,3 +134,4 @@ if __name__ == "__main__":
         print("Lỗi: Token Discord không hợp lệ.")
     except Exception as e:
         print(f"Lỗi không xác định khi chạy bot: {e}")
+    
