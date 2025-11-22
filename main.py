@@ -12,7 +12,7 @@ from google.genai.errors import APIError
 import time 
 import asyncio 
 
-# --- FLASK KEEP-ALIVE CHO RENDER (Cấu trúc web hiện đại) ---
+# --- FLASK KEEP-ALIVE CHO RENDER (Cấu trúc web ổn định) ---
 app = Flask('')
 
 @app.route('/')
@@ -25,7 +25,7 @@ def run_flask():
     app.run(host='0.0.0.0', port=os.environ.get('PORT', 8080)) 
 
 def keep_alive():
-    # Chạy Flask server trên một luồng riêng biệt (thread)
+    # Chạy Flask server trên một luồng riêng biệt (thread) để giữ bot Online
     t = Thread(target=run_flask)
     t.start()
 # -----------------------------------------------------------
@@ -40,7 +40,7 @@ if not DISCORD_TOKEN or not GEMINI_API_KEY:
 try:
     gemini_client = genai.Client(api_key=GEMINI_API_KEY)
     
-    # Model ổn định và dễ truy cập nhất
+    # Sử dụng model ổn định và dễ truy cập nhất để tránh lỗi Quota
     MODEL_NAME = "gemini-2.5-flash" 
     print(f'Đã khởi tạo Gemini Client với model: {MODEL_NAME}')
 except Exception as e:
@@ -134,4 +134,3 @@ if __name__ == "__main__":
         print("Lỗi: Token Discord không hợp lệ.")
     except Exception as e:
         print(f"Lỗi không xác định khi chạy bot: {e}")
-    
