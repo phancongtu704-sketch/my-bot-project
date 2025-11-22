@@ -4,3 +4,4 @@ discord.py
 google-genai
 requests
 Pillow
+httpx  # <-- Thêm thư viện này
